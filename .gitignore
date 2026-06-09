@@ -1,0 +1,45 @@
+# Data (raw files can be large)
+data/raw/
+data/processed/
+
+# Model artifacts (use Git LFS or HF Hub if needed)
+backend/model/*.keras
+backend/model/*.h5
+backend/model/*.pkl
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Node / Frontend
+node_modules/
+.next/
+out/
+.vercel
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
