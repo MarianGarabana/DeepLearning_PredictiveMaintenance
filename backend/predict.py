@@ -15,6 +15,8 @@ _MODEL  = None
 _META   = None   # dict: scaler, feature_cols, drop_sensors, sequence_length, rul_cap
 _GRADS  = None   # attention model for feature importance
 
+DEFAULT_OP_SETTINGS = [0.0, 0.0, 100.0]  # FD001 nominal operating condition.
+
 
 def _load():
     global _MODEL, _META
@@ -58,10 +60,11 @@ def _preprocess(sensor_window: List[List[float]]) -> np.ndarray:
     sensor_cols = [f'sensor_{i}' for i in range(1, 22)]
     all_cols    = op_cols + sensor_cols
 
-    # sensor_window has 21 raw sensor values — no op settings from frontend
-    # Pad with zeros for op settings if not provided
+    # sensor_window has 21 raw sensor values — no op settings from frontend.
+    # FD001's third operating setting is constant at 100, so zero-padding it
+    # would push scaled inference inputs outside the training range.
     if len(sensor_window[0]) == 21:
-        window_with_ops = [[0.0, 0.0, 0.0] + row for row in sensor_window]
+        window_with_ops = [DEFAULT_OP_SETTINGS + row for row in sensor_window]
     else:
         window_with_ops = sensor_window  # assume full 24-col input
 
