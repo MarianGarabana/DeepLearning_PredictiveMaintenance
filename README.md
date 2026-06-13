@@ -1,3 +1,13 @@
+---
+title: Aerospace Predictive Maintenance API
+emoji: 🛫
+colorFrom: blue
+colorTo: cyan
+sdk: docker
+pinned: false
+short_description: FastAPI backend for turbofan engine RUL prediction
+---
+
 # Aerospace Predictive Maintenance AI
 
 **IE University — Deep Learning Final Project | June 2026 | Prof. Concepción Díaz**
