@@ -2,7 +2,7 @@
 title: Aerospace Predictive Maintenance API
 emoji: 🛫
 colorFrom: blue
-colorTo: cyan
+colorTo: blue
 sdk: docker
 pinned: false
 short_description: FastAPI backend for turbofan engine RUL prediction
