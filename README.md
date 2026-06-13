@@ -130,6 +130,10 @@ uvicorn main:app --reload --port 8000
 # → http://localhost:8000/docs
 ```
 
+### 5. Deploy backend to Hugging Face Spaces
+
+Use the root `Dockerfile` and follow [`docs/huggingface_deployment.md`](docs/huggingface_deployment.md).
+
 ---
 
 ## API Contract
@@ -147,7 +151,7 @@ uvicorn main:app --reload --port 8000
 ```json
 {
   "engine_id": "ENG-001",
-  "sensor_window": [[...17 values...] × 30 cycles]
+  "sensor_window": [[...21 raw sensor values...] × 30 cycles]
 }
 ```
 
