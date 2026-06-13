@@ -118,7 +118,7 @@ In your IDE (VS Code / Antigravity / Jupyter): select **dl_project** kernel befo
 notebooks/01_EDA.ipynb
 notebooks/02_preprocessing.ipynb    ← generates data/processed/ + backend/model/scaler.pkl
 notebooks/03_model_training.ipynb   ← trains 4 models, saves backend/model/lstm_model.keras
-notebooks/04_evaluation.ipynb       ← metrics, plots, frontend/src/public/demo-data/*.json
+notebooks/04_evaluation.ipynb       ← metrics, plots, frontend/public/demo-data/*.json
 ```
 
 ### 4. Run backend locally

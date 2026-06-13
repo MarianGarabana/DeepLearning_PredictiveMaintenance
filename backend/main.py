@@ -37,7 +37,7 @@ app.add_middleware(
 # ── In-memory simulation sessions (stateless prod would use Redis) ─────────
 _simulate_sessions: dict = {}
 
-DEMO_DATA_DIR = Path(__file__).parent.parent / 'frontend' / 'src' / 'public' / 'demo-data'
+DEMO_DATA_DIR = Path(__file__).parent.parent / 'frontend' / 'public' / 'demo-data'
 
 
 @app.get('/health', response_model=HealthResponse)
@@ -64,24 +64,28 @@ def predict(req: PredictRequest):
 def fleet():
     # Pre-loaded demo fleet at different degradation stages
     engines = [
-        {'engine_id': 'ENG-001', 'rul': 342.0, 'status': 'OK'},
-        {'engine_id': 'ENG-002', 'rul': 187.0, 'status': 'OK'},
-        {'engine_id': 'ENG-003', 'rul': 94.0,  'status': 'WARNING'},
-        {'engine_id': 'ENG-004', 'rul': 41.0,  'status': 'CRITICAL'},
-        {'engine_id': 'ENG-005', 'rul': 215.0, 'status': 'OK'},
-        {'engine_id': 'ENG-006', 'rul': 68.0,  'status': 'WARNING'},
+        {'engine_id': 'ENG-001', 'rul': 125.0},
+        {'engine_id': 'ENG-002', 'rul': 110.0},
+        {'engine_id': 'ENG-003', 'rul': 74.0},
+        {'engine_id': 'ENG-004', 'rul': 24.0},
+        {'engine_id': 'ENG-005', 'rul': 96.0},
+        {'engine_id': 'ENG-006', 'rul': 52.0},
     ]
     now = datetime.now(timezone.utc).isoformat()
-    return [EngineStatus(**e, last_updated=now) for e in engines]
+    return [
+        EngineStatus(**e, status=rul_to_status(e['rul']), last_updated=now)
+        for e in engines
+    ]
 
 
 @app.get('/engine/{engine_id}', response_model=EngineDetail)
 def engine_detail(engine_id: str):
     # Placeholder — in prod, load from DB
+    current_rul = 74.0
     return EngineDetail(
         engine_id=engine_id,
-        current_rul=94.0,
-        status='WARNING',
+        current_rul=current_rul,
+        status=rul_to_status(current_rul),
         sensor_history=[],
         rul_history=[],
     )

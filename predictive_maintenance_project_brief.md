@@ -227,8 +227,8 @@ predictive-maintenance-ai/
 │       │   └── types.ts             # TypeScript interfaces matching backend schemas
 │       └── public/
 │           └── demo-data/
-│               ├── engine_healthy.json     # Pre-recorded: stable RUL ~400
-│               ├── engine_degrading.json   # Pre-recorded: RUL drops from 200→0 (USE THIS FOR DEMO)
+│               ├── engine_healthy.json     # Pre-recorded: stable capped RUL 125
+│               ├── engine_degrading.json   # Pre-recorded: RUL drops from 79→0 (USE THIS FOR DEMO)
 │               └── engine_critical.json   # Pre-recorded: RUL already <50
 │
 ├── presentation/
