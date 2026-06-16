@@ -20,9 +20,9 @@ short_description: FastAPI backend for turbofan engine RUL prediction
 
 | Service | URL |
 |---|---|
-| Frontend Dashboard | _coming Week 2 — Vercel_ |
-| Backend API | _coming Week 2 — Hugging Face Spaces_ |
-| API Docs | `{backend_url}/docs` |
+| Frontend Dashboard | _coming soon — Vercel_ |
+| Backend API | https://mariangarabana-predictive-maintenance-api.hf.space |
+| API Docs | https://mariangarabana-predictive-maintenance-api.hf.space/docs |
 
 ---
 

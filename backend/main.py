@@ -22,14 +22,13 @@ load_dotenv()
 
 app = FastAPI(title='Predictive Maintenance API', version='1.0.0')
 
-ALLOWED_ORIGINS = os.getenv(
-    'ALLOWED_ORIGINS',
-    'http://localhost:3000,http://localhost:3001'
-).split(',')
+_origins_env = os.getenv('ALLOWED_ORIGINS', '*')
+ALLOWED_ORIGINS = _origins_env.split(',') if _origins_env != '*' else ['*']
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=ALLOWED_ORIGINS != ['*'],
     allow_methods=['*'],
     allow_headers=['*'],
 )
@@ -78,16 +77,44 @@ def fleet():
     ]
 
 
+_ENGINE_SCENARIO = {
+    'ENG-001': 'healthy',
+    'ENG-002': 'healthy',
+    'ENG-003': 'degrading',
+    'ENG-004': 'critical',
+    'ENG-005': 'degrading',
+    'ENG-006': 'degrading',
+}
+
+_ENGINE_CURRENT_RUL = {
+    'ENG-001': 125.0,
+    'ENG-002': 110.0,
+    'ENG-003': 74.0,
+    'ENG-004': 24.0,
+    'ENG-005': 96.0,
+    'ENG-006': 52.0,
+}
+
 @app.get('/engine/{engine_id}', response_model=EngineDetail)
 def engine_detail(engine_id: str):
-    # Placeholder — in prod, load from DB
-    current_rul = 74.0
+    scenario = _ENGINE_SCENARIO.get(engine_id, 'degrading')
+    scenario_file = DEMO_DATA_DIR / f'engine_{scenario}.json'
+    if not scenario_file.exists():
+        raise HTTPException(status_code=404, detail=f'Demo data not found for scenario: {scenario}')
+
+    with open(scenario_file) as f:
+        data = json.load(f)
+
+    sensor_history = [row['sensors'] for row in data]
+    rul_history = [float(row['rul']) for row in data]
+    current_rul = _ENGINE_CURRENT_RUL.get(engine_id, rul_history[-1])
+
     return EngineDetail(
         engine_id=engine_id,
         current_rul=current_rul,
         status=rul_to_status(current_rul),
-        sensor_history=[],
-        rul_history=[],
+        sensor_history=sensor_history,
+        rul_history=rul_history,
     )
 
 
