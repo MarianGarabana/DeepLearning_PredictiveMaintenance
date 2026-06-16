@@ -41,7 +41,7 @@ export function FeatureImportance({ sensors, title = 'Top Sensor Drivers' }: Fea
                 border: '1px solid #00d4ff',
                 borderRadius: '4px',
               }}
-              formatter={(value) => value.toFixed(4)}
+              formatter={(value) => (typeof value === 'number' ? value.toFixed(4) : value)}
             />
             <Bar dataKey="importance" fill="#00d4ff" radius={[0, 8, 8, 0]} />
           </BarChart>
