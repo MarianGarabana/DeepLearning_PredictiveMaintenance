@@ -1,0 +1,46 @@
+/* Single source of truth for the dark "aerospace ops-center" theme.
+   Status colors mirror the backend's rul_to_status thresholds but are only
+   ever applied via the API-provided status string — never recomputed here. */
+:root {
+  /* Surfaces */
+  --bg: #0a0e14;
+  --bg-grid: rgba(0, 212, 255, 0.035);
+  --panel: #11161f;
+  --panel-raised: #161d29;
+  --panel-hover: #1a2230;
+  --border: rgba(120, 150, 190, 0.14);
+  --border-strong: rgba(120, 150, 190, 0.28);
+
+  /* Text */
+  --text: #e8eef6;
+  --text-dim: #9aa9bd;
+  --text-faint: #5f6e83;
+
+  /* Accent (cyan/blue — matches the HF Space metadata) */
+  --accent: #00d4ff;
+  --accent-dim: #2a8bb0;
+  --accent-glow: 0 0 18px rgba(0, 212, 255, 0.35);
+
+  /* Status */
+  --ok: #2ecc71;
+  --ok-soft: rgba(46, 204, 113, 0.14);
+  --ok-glow: 0 0 16px rgba(46, 204, 113, 0.45);
+
+  --warn: #f5a623;
+  --warn-soft: rgba(245, 166, 35, 0.14);
+  --warn-glow: 0 0 16px rgba(245, 166, 35, 0.45);
+
+  --crit: #ff4d4f;
+  --crit-soft: rgba(255, 77, 79, 0.14);
+  --crit-glow: 0 0 18px rgba(255, 77, 79, 0.5);
+
+  /* Type */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "SFMono-Regular", ui-monospace, "JetBrains Mono", "Courier New", monospace;
+
+  /* Geometry */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --gap: 20px;
+  --maxw: 1280px;
+}

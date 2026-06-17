@@ -1,68 +1,54 @@
-import {
+import type {
+  HealthResponse,
+  EngineStatus,
   PredictRequest,
   PredictResponse,
-  EngineStatus,
-  EngineDetail,
   SimulateStartRequest,
   SimulateStartResponse,
   SimulateNextResponse,
-  HealthResponse,
 } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Dev: defaults to "/api", proxied to :8000 by Vite (no CORS).
+// Prod: set VITE_API_BASE_URL to the deployed backend.
+const BASE = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') || '/api';
 
-class APIError extends Error {
-  constructor(public status: number, message: string) {
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
     super(message);
-    this.name = 'APIError';
+    this.name = 'ApiError';
   }
 }
 
-async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-    ...options,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new APIError(response.status, `API Error: ${error}`);
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...init,
+    });
+  } catch {
+    throw new ApiError(0, 'Cannot reach the backend. Is it running on :8000?');
   }
-
-  return response.json();
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new ApiError(res.status, body || `Request failed (${res.status})`);
+  }
+  return res.json() as Promise<T>;
 }
 
 export const api = {
-  async health(): Promise<HealthResponse> {
-    return fetchAPI('/health');
-  },
-
-  async predict(req: PredictRequest): Promise<PredictResponse> {
-    return fetchAPI('/predict', {
+  health: () => request<HealthResponse>('/health'),
+  getFleet: () => request<EngineStatus[]>('/fleet'),
+  predict: (req: PredictRequest) =>
+    request<PredictResponse>('/predict', { method: 'POST', body: JSON.stringify(req) }),
+  simulateStart: (req: SimulateStartRequest) =>
+    request<SimulateStartResponse>('/simulate/start', {
       method: 'POST',
       body: JSON.stringify(req),
-    });
-  },
-
-  async fleet(): Promise<EngineStatus[]> {
-    return fetchAPI('/fleet');
-  },
-
-  async engineDetail(engineId: string): Promise<EngineDetail> {
-    return fetchAPI(`/engine/${engineId}`);
-  },
-
-  async simulateStart(req: SimulateStartRequest): Promise<SimulateStartResponse> {
-    return fetchAPI('/simulate/start', {
-      method: 'POST',
-      body: JSON.stringify(req),
-    });
-  },
-
-  async simulateNext(sessionId: string): Promise<SimulateNextResponse> {
-    return fetchAPI(`/simulate/next/${sessionId}`);
-  },
+    }),
+  simulateNext: (sessionId: string) =>
+    request<SimulateNextResponse>(`/simulate/next/${sessionId}`),
 };

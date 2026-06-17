@@ -1,70 +1,97 @@
-'use client';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
+import styles from './SensorChart.module.css';
 
-import React, { useEffect, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-
-interface SensorChartProps {
-  sensors: number[][];
-  title?: string;
-  maxCycles?: number;
+export interface Series {
+  key: string;
+  name: string;
+  color: string;
 }
 
-const SENSOR_NAMES = [
-  'T24', 'T30', 'T50', 'P24', 'P30', 'P50', 'Ps30', 'Phi', 'NC', 'ND',
-  'Nf', 'NRf', 'NRc', 'BPR', 'farB', 'htBleed', 'Nf_dmd', 'PCNfR_dmd',
-  'W31', 'W32', 'DSM'
-];
+interface SensorChartProps {
+  data: Array<Record<string, number>>;
+  series: Series[];
+  xKey?: string;
+  xLabel?: string;
+  height?: number;
+  title?: string;
+  yDomain?: [number | 'auto', number | 'auto'];
+}
 
-export function SensorChart({ sensors, title = 'Sensor Time Series (Last 30 Cycles)', maxCycles = 30 }: SensorChartProps) {
-  const [data, setData] = useState<any[]>([]);
+const AXIS = '#5f6e83';
+const GRID = 'rgba(120,150,190,0.12)';
 
-  useEffect(() => {
-    if (!sensors || sensors.length === 0) {
-      setData([]);
-      return;
-    }
-
-    // Transform sensor data for Recharts
-    const chartData = sensors.slice(-maxCycles).map((sensorRow, idx) => {
-      const point: any = { cycle: idx + 1 };
-      // Include first 5 sensors for readability
-      [0, 1, 2, 5, 10].forEach((sensorIdx) => {
-        if (sensorIdx < sensorRow.length) {
-          point[SENSOR_NAMES[sensorIdx]] = Math.round(sensorRow[sensorIdx] * 100) / 100;
-        }
-      });
-      return point;
-    });
-    setData(chartData);
-  }, [sensors, maxCycles]);
-
+export function SensorChart({
+  data,
+  series,
+  xKey = 'cycle',
+  xLabel,
+  height = 240,
+  title,
+  yDomain,
+}: SensorChartProps) {
   return (
-    <div className="bg-aerospace-dark border border-aerospace-accent/20 rounded-lg p-6">
-      <h3 className="text-xl font-bold text-white mb-6">{title}</h3>
-      {data.length === 0 ? (
-        <div className="text-gray-400 text-center py-8">No sensor data available</div>
-      ) : (
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
-            <XAxis dataKey="cycle" stroke="#888" />
-            <YAxis stroke="#888" />
+    <div className={styles.card}>
+      {title && <h3 className={styles.title}>{title}</h3>}
+      <div style={{ width: '100%', height }}>
+        <ResponsiveContainer>
+          <LineChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: -8 }}>
+            <CartesianGrid stroke={GRID} strokeDasharray="3 3" />
+            <XAxis
+              dataKey={xKey}
+              stroke={AXIS}
+              tick={{ fill: AXIS, fontSize: 11, fontFamily: 'var(--font-mono)' }}
+              tickLine={false}
+              label={
+                xLabel
+                  ? { value: xLabel, position: 'insideBottom', offset: -2, fill: AXIS, fontSize: 11 }
+                  : undefined
+              }
+            />
+            <YAxis
+              stroke={AXIS}
+              tick={{ fill: AXIS, fontSize: 11, fontFamily: 'var(--font-mono)' }}
+              tickLine={false}
+              domain={yDomain ?? ['auto', 'auto']}
+              width={48}
+            />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#0a0f1e',
-                border: '1px solid #00d4ff',
-                borderRadius: '4px',
+                background: '#11161f',
+                border: '1px solid rgba(120,150,190,0.28)',
+                borderRadius: 8,
+                fontSize: 12,
               }}
+              labelStyle={{ color: '#9aa9bd' }}
+              itemStyle={{ fontFamily: 'var(--font-mono)' }}
+              labelFormatter={(v) => `Cycle ${v}`}
             />
-            <Legend wrapperStyle={{ paddingTop: '20px' }} />
-            <Line type="monotone" dataKey="T24" stroke="#00d4ff" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="T30" stroke="#f59e0b" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="T50" stroke="#10b981" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="P24" stroke="#8b5cf6" dot={false} strokeWidth={2} />
-            <Line type="monotone" dataKey="NC" stroke="#ec4899" dot={false} strokeWidth={2} />
+            {series.length > 1 && (
+              <Legend wrapperStyle={{ fontSize: 12, color: '#9aa9bd' }} iconType="plainline" />
+            )}
+            {series.map((s) => (
+              <Line
+                key={s.key}
+                type="monotone"
+                dataKey={s.key}
+                name={s.name}
+                stroke={s.color}
+                strokeWidth={2}
+                dot={false}
+                isAnimationActive={false}
+              />
+            ))}
           </LineChart>
         </ResponsiveContainer>
-      )}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,119 @@
+.app {
+  min-height: 100%;
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(10, 14, 20, 0.82);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.bar {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  height: 60px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid var(--accent);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  box-shadow: var(--accent-glow);
+}
+
+.brandText {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-size: 15px;
+}
+
+.brandThin {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.nav {
+  display: flex;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.navlink {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--text-dim);
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.navlink:hover {
+  color: var(--text);
+  background: var(--panel);
+}
+
+.active {
+  color: var(--accent);
+  background: var(--panel);
+}
+
+.health {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.healthDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.online .healthDot {
+  background: var(--ok);
+  box-shadow: var(--ok-glow);
+}
+.no-model .healthDot {
+  background: var(--warn);
+  box-shadow: var(--warn-glow);
+}
+.offline .healthDot {
+  background: var(--crit);
+  box-shadow: var(--crit-glow);
+}
+.checking .healthDot {
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+@media (max-width: 560px) {
+  .health {
+    display: none;
+  }
+  .bar {
+    gap: 16px;
+    padding: 0 16px;
+  }
+}

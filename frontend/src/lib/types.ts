@@ -1,3 +1,7 @@
+// Mirrors backend/schemas.py — keep in sync with the API contract.
+
+export type Status = 'OK' | 'WARNING' | 'CRITICAL';
+
 export interface SensorImportance {
   name: string;
   importance: number;
@@ -5,7 +9,7 @@ export interface SensorImportance {
 
 export interface PredictRequest {
   engine_id: string;
-  sensor_window: number[][];
+  sensor_window: number[][]; // 30 rows × 21 raw sensor values
 }
 
 export interface PredictResponse {
@@ -13,27 +17,19 @@ export interface PredictResponse {
   rul: number;
   ci_lower: number;
   ci_upper: number;
-  status: 'OK' | 'WARNING' | 'CRITICAL';
+  status: Status;
   top_sensors: SensorImportance[];
 }
 
 export interface EngineStatus {
   engine_id: string;
   rul: number;
-  status: 'OK' | 'WARNING' | 'CRITICAL';
+  status: Status;
   last_updated: string;
 }
 
-export interface EngineDetail {
-  engine_id: string;
-  current_rul: number;
-  status: 'OK' | 'WARNING' | 'CRITICAL';
-  sensor_history: number[][];
-  rul_history: number[];
-}
-
 export interface SimulateStartRequest {
-  scenario: 'healthy' | 'degrading' | 'critical';
+  scenario: Scenario;
 }
 
 export interface SimulateStartResponse {
@@ -45,11 +41,20 @@ export interface SimulateNextResponse {
   cycle: number;
   sensors: number[];
   rul: number;
-  status: 'OK' | 'WARNING' | 'CRITICAL';
+  status: Status;
   done: boolean;
 }
 
 export interface HealthResponse {
   status: string;
   model_loaded: boolean;
+}
+
+// ── Demo data (frontend/public/demo-data/engine_*.json) ──────────────────
+export type Scenario = 'healthy' | 'degrading' | 'critical';
+
+export interface DemoRow {
+  cycle: number;
+  sensors: number[]; // 21 raw sensor values
+  rul: number;
 }
