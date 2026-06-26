@@ -1,5 +1,5 @@
 /**
- * The thermal language — the one place saturated colour lives.
+ * The thermal language - the one place saturated colour lives.
  * Maps Remaining Useful Life onto heat: low RUL = critical/ember, high = healthy.
  */
 export type RulStatus = 'OK' | 'WARNING' | 'CRITICAL';
@@ -14,12 +14,12 @@ export function statusForRul(rul: number): RulStatus {
 }
 
 export const THERMAL = {
-  healthy: '#2E9E7B',
-  healthyInk: '#1F6E55',
+  healthy: '#2EA982',
+  healthyInk: '#45D9A8',
   warm: '#E0A100',
-  warmInk: '#946800',
-  ember: '#C8410B',
-  critical: '#8E1B0E',
+  warmInk: '#F2C75A',
+  ember: '#E2631E',
+  critical: '#EF5350',
 } as const;
 
 /** Saturated fill colour for a status (gauge arcs, chips). */

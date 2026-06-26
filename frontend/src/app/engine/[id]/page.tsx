@@ -7,7 +7,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
 } from 'recharts';
 import { api } from '@/lib/api';
-import { EngineDetail } from '@/lib/types';
+import { EngineDetail, ModelPerformanceResponse } from '@/lib/types';
 import { RULGauge } from '@/components/RULGauge';
 import { SensorChart } from '@/components/SensorChart';
 import { FeatureImportance } from '@/components/FeatureImportance';
@@ -15,12 +15,14 @@ import { AlertCard } from '@/components/AlertCard';
 import { Panel, Eyebrow, StatusAnnunciator } from '@/components/ui';
 import { EngineSchematic } from '@/components/icons';
 import { RulStatus, statusForRul } from '@/lib/thermal';
+import { toSensorImportance } from '@/lib/sensorMeta';
 
-const AXIS = '#8C857B';
-const GRID = '#CFC9C0';
+const AXIS = 'var(--ink-faint)';
+const GRID = 'var(--hairline)';
 
 export default function EngineDetailPage({ params }: { params: { id: string } }) {
   const [engine, setEngine] = useState<EngineDetail | null>(null);
+  const [perf, setPerf] = useState<ModelPerformanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +30,12 @@ export default function EngineDetailPage({ params }: { params: { id: string } })
     async function load() {
       try {
         setLoading(true);
-        setEngine(await api.engineDetail(params.id));
+        const [engineData, perfData] = await Promise.all([
+          api.engineDetail(params.id),
+          api.modelPerformance().catch(() => null),
+        ]);
+        setEngine(engineData);
+        setPerf(perfData);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load engine data');
       } finally {
@@ -105,10 +112,14 @@ export default function EngineDetailPage({ params }: { params: { id: string } })
               <CartesianGrid strokeDasharray="2 4" stroke={GRID} />
               <XAxis dataKey="cycle" stroke={AXIS} fontSize={11} fontFamily="var(--font-mono)" tickLine={false} />
               <YAxis stroke={AXIS} fontSize={11} fontFamily="var(--font-mono)" tickLine={false} domain={[0, 125]} />
-              <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #CFC9C0', borderRadius: '8px', fontFamily: 'var(--font-mono)', fontSize: '12px' }} />
-              <ReferenceLine y={80} stroke="#E0A100" strokeDasharray="4 4" />
-              <ReferenceLine y={30} stroke="#8E1B0E" strokeDasharray="4 4" />
-              <Line type="monotone" dataKey="rul" stroke="#3B6E8F" strokeWidth={2.5} dot={false} />
+              <Tooltip
+                contentStyle={{ backgroundColor: 'var(--surface-raised)', border: '1px solid var(--hairline)', borderRadius: '8px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--ink)' }}
+                labelStyle={{ color: 'var(--ink)', fontWeight: 600 }}
+                itemStyle={{ color: 'var(--ink-soft)' }}
+              />
+              <ReferenceLine y={80} stroke="var(--thermal-warm)" strokeDasharray="4 4" />
+              <ReferenceLine y={30} stroke="var(--thermal-critical)" strokeDasharray="4 4" />
+              <Line type="monotone" dataKey="rul" stroke="var(--steel-deep)" strokeWidth={2.5} dot={false} />
             </LineChart>
           </ResponsiveContainer>
           <p className="mt-2 font-mono text-xs text-ink-soft">
@@ -120,14 +131,7 @@ export default function EngineDetailPage({ params }: { params: { id: string } })
       {/* Sensors + drivers */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <SensorChart sensors={engine.sensor_history} />
-        <FeatureImportance
-          sensors={[
-            { name: 'T50', importance: 0.148 }, { name: 'P30', importance: 0.132 },
-            { name: 'Nf', importance: 0.119 }, { name: 'NRc', importance: 0.105 },
-            { name: 'T24', importance: 0.098 }, { name: 'P24', importance: 0.087 },
-            { name: 'Ps30', importance: 0.076 }, { name: 'Nc', importance: 0.065 },
-          ]}
-        />
+        <FeatureImportance sensors={toSensorImportance(perf?.feature_importance)} />
       </div>
 
       {engine.current_rul < 50 && (

@@ -9,6 +9,7 @@ import {
   HealthResponse,
   ModelPerformanceResponse,
 } from './types';
+import { MODEL_METRICS } from './modelMetrics';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -68,6 +69,12 @@ export const api = {
   },
 
   async modelPerformance(): Promise<ModelPerformanceResponse> {
-    return fetchAPI('/model-performance');
+    // The older deployed Space build lacks this endpoint (404). Fall back to
+    // the bundled real evaluation metrics so the demo always shows real data.
+    try {
+      return await fetchAPI<ModelPerformanceResponse>('/model-performance');
+    } catch {
+      return MODEL_METRICS;
+    }
   },
 };

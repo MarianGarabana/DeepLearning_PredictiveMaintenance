@@ -119,12 +119,12 @@ export function RULGauge({ rul, ciLower, ciUpper, animate = true }: RULGaugeProp
           <path
             d={arc(R, START, START + SWEEP)}
             fill="none"
-            stroke="#E2DED7"
+            stroke="var(--surface-sunk)"
             strokeWidth="14"
             strokeLinecap="round"
           />
 
-          {/* Thermal gradient track — left=critical, right=healthy */}
+          {/* Thermal gradient track - left=critical, right=healthy */}
           {Array.from({ length: SEGMENTS }).map((_, i) => {
             const a0 = START + (i / SEGMENTS) * SWEEP;
             const a1 = START + ((i + 1) / SEGMENTS) * SWEEP + 0.6;
@@ -161,7 +161,7 @@ export function RULGauge({ rul, ciLower, ciUpper, animate = true }: RULGaugeProp
             const [lx, ly] = polar(R - 30, a);
             return (
               <g key={v}>
-                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#8C857B" strokeWidth="1.5" />
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--ink-faint)" strokeWidth="1.5" />
                 <text
                   x={lx}
                   y={ly}
@@ -169,7 +169,7 @@ export function RULGauge({ rul, ciLower, ciUpper, animate = true }: RULGaugeProp
                   dominantBaseline="middle"
                   fontSize="9"
                   fontFamily="var(--font-mono, monospace)"
-                  fill="#8C857B"
+                  fill="var(--ink-faint)"
                 >
                   {v}
                 </text>
@@ -183,11 +183,11 @@ export function RULGauge({ rul, ciLower, ciUpper, animate = true }: RULGaugeProp
             y1={tailY}
             x2={nx}
             y2={ny}
-            stroke="#1A1714"
+            stroke="var(--ink)"
             strokeWidth="3.5"
             strokeLinecap="round"
           />
-          <circle cx={CX} cy={CY} r="9" fill="#FBFAF8" stroke="#1A1714" strokeWidth="2" />
+          <circle cx={CX} cy={CY} r="9" fill="var(--surface-raised)" stroke="var(--ink)" strokeWidth="2" />
           <circle cx={CX} cy={CY} r="2.6" fill={ink} />
 
           {/* Central readout */}
@@ -209,7 +209,7 @@ export function RULGauge({ rul, ciLower, ciUpper, animate = true }: RULGaugeProp
             fontSize="9.5"
             letterSpacing="3"
             fontFamily="var(--font-mono, monospace)"
-            fill="#5A544C"
+            fill="var(--ink-soft)"
           >
             CYCLES RUL
           </text>
@@ -227,7 +227,7 @@ export function RULGauge({ rul, ciLower, ciUpper, animate = true }: RULGaugeProp
         </span>
         {ciLower !== undefined && ciUpper !== undefined && (
           <span className="font-mono text-xs text-ink-soft">
-            95% CI · {ciLower.toFixed(0)}–{ciUpper.toFixed(0)} cycles
+            95% CI · {ciLower.toFixed(0)}-{ciUpper.toFixed(0)} cycles
           </span>
         )}
       </div>

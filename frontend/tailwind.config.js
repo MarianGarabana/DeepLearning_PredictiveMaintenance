@@ -8,34 +8,34 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // ── Titanium & Ember ───────────────────────────────────────────
-        // Warm metallic neutrals carry structure + text; saturated colour
-        // is reserved for the thermal scale (colour = heat = remaining life).
-        ground: '#E9E6E1', // brushed titanium — page background
+        // ── Aerospace dark ─────────────────────────────────────────────
+        // Deep-navy neutrals carry structure + light text; cyan steel is the
+        // cool accent, saturated colour reserved for the thermal scale.
+        ground: '#060A14', // deep navy — page background
         surface: {
-          DEFAULT: '#FBFAF8', // panels
-          raised: '#FFFFFF', // raised cards / instrument glass
-          sunk: '#E2DED7', // recessed wells (slider tracks, readouts)
+          DEFAULT: '#0B1322', // panels
+          raised: '#121D33', // raised cards / instrument glass
+          sunk: '#080F1C', // recessed wells (slider tracks, readouts)
         },
-        hairline: '#CFC9C0', // rules & borders
+        hairline: '#1F3350', // rules & borders
         ink: {
-          DEFAULT: '#1A1714', // graphite — primary text
-          soft: '#5A544C', // secondary text / captions
-          faint: '#8C857B', // tertiary / disabled
+          DEFAULT: '#E7EEF7', // primary text
+          soft: '#9BACC4', // secondary text / captions
+          faint: '#647892', // tertiary / disabled
         },
         steel: {
-          DEFAULT: '#3B6E8F', // cool accent — links, non-thermal data
-          deep: '#2A506A',
-          wash: '#E4EBF0', // tinted fill on light ground
+          DEFAULT: '#1C84A8', // cyan accent — links, non-thermal data
+          deep: '#34B4D6',
+          wash: '#13283C', // tinted fill on the dark ground
         },
-        // `*-ink` variants are darkened for legible text on the light ground.
+        // `*-ink` variants are brightened for legible text on the dark ground.
         thermal: {
-          healthy: '#2E9E7B',
-          'healthy-ink': '#1F6E55',
+          healthy: '#2EA982',
+          'healthy-ink': '#45D9A8',
           warm: '#E0A100',
-          'warm-ink': '#946800',
-          ember: '#C8410B',
-          critical: '#8E1B0E',
+          'warm-ink': '#F2C75A',
+          ember: '#E2631E',
+          critical: '#EF5350',
         },
       },
       fontFamily: {

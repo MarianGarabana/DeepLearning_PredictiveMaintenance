@@ -29,7 +29,7 @@ export function Navigation() {
   }, []);
 
   const linkColor =
-    link === 'ok' ? '#1F6E55' : link === 'down' ? '#8E1B0E' : '#8C857B';
+    link === 'ok' ? '#45D9A8' : link === 'down' ? '#EF5350' : '#9BACC4';
   const linkLabel =
     link === 'ok' ? 'Link OK' : link === 'down' ? 'Link down' : 'Linking…';
 

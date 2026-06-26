@@ -2,7 +2,7 @@ import React from 'react';
 import { OkMark, CautionMark, WarningMark } from '@/components/icons';
 import { RulStatus, statusInk, statusLabel } from '@/lib/thermal';
 
-/** Instrument panel — the single card primitive (replaces the cloned divs). */
+/** Instrument panel - the single card primitive (replaces the cloned divs). */
 export function Panel({
   className = '',
   raised = false,
@@ -21,7 +21,7 @@ export function Panel({
   );
 }
 
-/** Uppercase mono eyebrow — encodes section/context, not decoration. */
+/** Uppercase mono eyebrow - encodes section/context, not decoration. */
 export function Eyebrow({
   children,
   className = '',

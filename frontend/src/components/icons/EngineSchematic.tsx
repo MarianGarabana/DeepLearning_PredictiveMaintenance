@@ -33,7 +33,7 @@ const TURBINE = [
 const STEEL = 'var(--steel, #3b6e8f)';
 
 /**
- * Turbofan gas-path cross-section — the signature explanatory graphic.
+ * Turbofan gas-path cross-section - the signature explanatory graphic.
  * Inherits `currentColor` for the line-art; the combustor flame is the one
  * spot of ember, reinforcing "heat lives in the core."
  */
@@ -73,7 +73,7 @@ export function EngineSchematic({
         <circle cx="32" cy="50" r="2.4" fill="currentColor" stroke="none" />
       </g>
 
-      {/* Compressor stages — converging (LPC then HPC) */}
+      {/* Compressor stages - converging (LPC then HPC) */}
       {COMPRESSOR.map(({ x, h }, i) => (
         <path
           key={`c${x}`}
@@ -82,7 +82,7 @@ export function EngineSchematic({
         />
       ))}
 
-      {/* Combustor — annular liner + flame */}
+      {/* Combustor - annular liner + flame */}
       <g stroke={tint('combustor')}>
         <rect x="114" y="41" width="32" height="18" rx="4" />
       </g>
@@ -97,7 +97,7 @@ export function EngineSchematic({
         stroke="none"
       />
 
-      {/* Turbine stages — diverging (HPT then LPT) */}
+      {/* Turbine stages - diverging (HPT then LPT) */}
       {TURBINE.map(({ x, h }, i) => (
         <path
           key={`t${x}`}

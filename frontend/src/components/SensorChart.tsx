@@ -15,7 +15,7 @@ const SENSOR_NAMES = [
   'W31', 'W32', 'DSM',
 ];
 
-// Channels that actually carry the degradation signal — one per family.
+// Channels that actually carry the degradation signal - one per family.
 // (The constant-variance channels the model drops are deliberately excluded.)
 const SHOWN = [2, 3, 10, 14, 19, 20]; // T50, P24, Nf, farB, W32, DSM
 
@@ -64,7 +64,7 @@ function SensorTile({ idx, window: win }: { idx: number; window: number[][] }) {
   const current = values[values.length - 1];
   const delta = current - values[0];
   const pct = values[0] ? (delta / Math.abs(values[0])) * 100 : 0;
-  const trend = delta > 0 ? '▲' : delta < 0 ? '▼' : '–';
+  const trend = delta > 0 ? '▲' : delta < 0 ? '▼' : '·';
 
   return (
     <div className="rounded-lg border border-hairline bg-surface-raised p-3">
@@ -120,8 +120,8 @@ export function SensorChart({ sensors, maxCycles = 80 }: SensorChartProps) {
             ))}
           </div>
           <p className="mt-3 font-mono text-[11px] text-ink-soft">
-            Each panel is scaled to its own range — the true shifts are ~1–2%, too subtle to read on a
-            shared axis, yet enough for the model to track wear.
+            Each box is zoomed to its own range. The real changes are tiny, only about 1 to 2 percent,
+            too small to see on a shared scale, but enough for the model to spot wear.
           </p>
         </>
       )}

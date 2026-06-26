@@ -1,5 +1,5 @@
 /**
- * The visual universe — a cohesive, hand-authored icon set for aerospace
+ * The visual universe - a cohesive, hand-authored icon set for aerospace
  * turbofan predictive maintenance. Every glyph shares the <Glyph> base
  * (24px grid, currentColor, one stroke language) so the family is unmistakable.
  *
@@ -28,7 +28,7 @@ export function TurbofanMark(props: GlyphProps) {
 
 /* ── Sensor families ────────────────────────────────────────────────────*/
 
-/** Temperature stations (T24/T30/T50) — EGT probe / thermometer. */
+/** Temperature stations (T24/T30/T50) - EGT probe / thermometer. */
 export function TemperatureGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -41,7 +41,7 @@ export function TemperatureGlyph(props: GlyphProps) {
   );
 }
 
-/** Pressure stations (P30/Ps30…) — dial gauge with needle. */
+/** Pressure stations (P30/Ps30…) - dial gauge with needle. */
 export function PressureGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -53,7 +53,7 @@ export function PressureGlyph(props: GlyphProps) {
   );
 }
 
-/** Spool speed (Nf/Nc/NRc) — rotating spool / tachometer. */
+/** Spool speed (Nf/Nc/NRc) - rotating spool / tachometer. */
 export function SpeedGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -65,7 +65,7 @@ export function SpeedGlyph(props: GlyphProps) {
   );
 }
 
-/** Mass flow (W31/W32) — duct with flow chevrons. */
+/** Mass flow (W31/W32) - duct with flow chevrons. */
 export function FlowGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -75,7 +75,7 @@ export function FlowGlyph(props: GlyphProps) {
   );
 }
 
-/** Bleed air / ratios (htBleed/BPR/farB) — ISA gate-valve bowtie. */
+/** Bleed air / ratios (htBleed/BPR/farB) - ISA gate-valve bowtie. */
 export function BleedGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -85,7 +85,7 @@ export function BleedGlyph(props: GlyphProps) {
   );
 }
 
-/** Vibration / health residual — seismograph spike. */
+/** Vibration / health residual - seismograph spike. */
 export function VibrationGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -96,7 +96,7 @@ export function VibrationGlyph(props: GlyphProps) {
 
 /* ── Model metrics ──────────────────────────────────────────────────────*/
 
-/** RMSE — residual scatter around the ideal line. */
+/** RMSE - residual scatter around the ideal line. */
 export function RmseGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -110,7 +110,7 @@ export function RmseGlyph(props: GlyphProps) {
   );
 }
 
-/** MAE — absolute deviations from a mean line. */
+/** MAE - absolute deviations from a mean line. */
 export function MaeGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -120,7 +120,7 @@ export function MaeGlyph(props: GlyphProps) {
   );
 }
 
-/** NASA Score — asymmetric penalty curve (late predictions cost more). */
+/** NASA Score - asymmetric penalty curve (late predictions cost more). */
 export function NasaScoreGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -131,7 +131,7 @@ export function NasaScoreGlyph(props: GlyphProps) {
   );
 }
 
-/** Accuracy band — concentric ±10 / ±25 target rings. */
+/** Accuracy band - concentric ±10 / ±25 target rings. */
 export function AccuracyBandGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -142,7 +142,7 @@ export function AccuracyBandGlyph(props: GlyphProps) {
   );
 }
 
-/** Remaining Useful Life — open-arc life gauge with needle. */
+/** Remaining Useful Life - open-arc life gauge with needle. */
 export function RulGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -154,7 +154,7 @@ export function RulGlyph(props: GlyphProps) {
   );
 }
 
-/** Confidence interval — capped error bar. */
+/** Confidence interval - capped error bar. */
 export function ConfidenceGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -166,7 +166,7 @@ export function ConfidenceGlyph(props: GlyphProps) {
 
 /* ── Status annunciators (EICAS silhouettes: circle / diamond / octagon) ──*/
 
-/** OK — advisory, healthy. */
+/** OK - advisory, healthy. */
 export function OkMark(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -176,7 +176,7 @@ export function OkMark(props: GlyphProps) {
   );
 }
 
-/** Caution — amber semantics. */
+/** Caution - amber semantics. */
 export function CautionMark(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -187,7 +187,7 @@ export function CautionMark(props: GlyphProps) {
   );
 }
 
-/** Warning — red semantics, the loudest silhouette. */
+/** Warning - red semantics, the loudest silhouette. */
 export function WarningMark(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -200,7 +200,7 @@ export function WarningMark(props: GlyphProps) {
 
 /* ── Navigation / section glyphs ────────────────────────────────────────*/
 
-/** Fleet — grid of engine discs. */
+/** Fleet - grid of engine discs. */
 export function FleetGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -213,7 +213,7 @@ export function FleetGlyph(props: GlyphProps) {
   );
 }
 
-/** Performance — rising trend line. */
+/** Performance - rising trend line. */
 export function PerformanceGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -224,7 +224,7 @@ export function PerformanceGlyph(props: GlyphProps) {
   );
 }
 
-/** Engine — side cross-section profile. */
+/** Engine - side cross-section profile. */
 export function EngineGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -235,7 +235,7 @@ export function EngineGlyph(props: GlyphProps) {
   );
 }
 
-/** Simulation — play head over a timeline. */
+/** Simulation - play head over a timeline. */
 export function SimulationGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
@@ -245,7 +245,7 @@ export function SimulationGlyph(props: GlyphProps) {
   );
 }
 
-/** What-if — twin slider levers. */
+/** What-if - twin slider levers. */
 export function WhatIfGlyph(props: GlyphProps) {
   return (
     <Glyph {...props}>
