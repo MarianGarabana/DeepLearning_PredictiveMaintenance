@@ -1,50 +1,87 @@
 'use client';
 
 import Link from 'next/link';
-import { BarChart3 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
+import { TurbofanMark, FleetGlyph, PerformanceGlyph, GlyphProps } from '@/components/icons';
 
-const NAV_LINKS = [
-  { href: '/', label: 'Fleet', icon: '🛫' },
-  { href: '/performance', label: 'Performance', icon: '📊' },
+const NAV_LINKS: { href: string; label: string; Glyph: React.ComponentType<GlyphProps> }[] = [
+  { href: '/', label: 'Fleet', Glyph: FleetGlyph },
+  { href: '/performance', label: 'Performance', Glyph: PerformanceGlyph },
 ];
+
+type Link = 'checking' | 'ok' | 'down';
 
 export function Navigation() {
   const pathname = usePathname();
+  const [link, setLink] = useState<Link>('checking');
+
+  useEffect(() => {
+    let active = true;
+    api
+      .health()
+      .then((h) => active && setLink(h.model_loaded ? 'ok' : 'down'))
+      .catch(() => active && setLink('down'));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const linkColor =
+    link === 'ok' ? '#1F6E55' : link === 'down' ? '#8E1B0E' : '#8C857B';
+  const linkLabel =
+    link === 'ok' ? 'Link OK' : link === 'down' ? 'Link down' : 'Linking…';
 
   return (
-    <nav className="bg-aerospace-dark border-b border-aerospace-accent/20">
-      <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 text-white hover:text-aerospace-accent transition">
-          <div className="w-8 h-8 bg-aerospace-accent rounded flex items-center justify-center text-aerospace-darker font-bold">
-            PM
-          </div>
-          <span className="font-bold text-lg">Predictive Maintenance</span>
+    <nav className="sticky top-0 z-40 border-b border-hairline bg-surface-raised/85 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 md:px-8">
+        {/* Brand */}
+        <Link href="/" className="flex items-center gap-2.5 text-ink">
+          <span className="text-steel">
+            <TurbofanMark size={28} />
+          </span>
+          <span className="hidden flex-col leading-none sm:flex">
+            <span className="font-display text-sm font-bold tracking-tight">
+              PREDICTIVE&nbsp;MAINTENANCE
+            </span>
+            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-faint">
+              Turbofan · FD001
+            </span>
+          </span>
         </Link>
 
-        {/* Links */}
-        <div className="flex items-center gap-8">
-          {NAV_LINKS.map(({ href, label, icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-2 px-3 py-2 rounded transition ${
-                pathname === href
-                  ? 'text-aerospace-accent border-b-2 border-aerospace-accent'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              <span>{icon}</span>
-              <span className="font-semibold">{label}</span>
-            </Link>
-          ))}
+        {/* Sections */}
+        <div className="flex items-center gap-1">
+          {NAV_LINKS.map(({ href, label, Glyph }) => {
+            const active = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? 'page' : undefined}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 font-display text-sm font-semibold transition ${
+                  active
+                    ? 'bg-steel-wash text-steel-deep'
+                    : 'text-ink-soft hover:bg-surface-sunk hover:text-ink'
+                }`}
+              >
+                <Glyph size={17} />
+                {label}
+              </Link>
+            );
+          })}
         </div>
 
-        {/* API Status */}
-        <div className="flex items-center gap-2 text-xs text-gray-400">
-          <div className="w-2 h-2 bg-aerospace-success rounded-full animate-pulse"></div>
-          <span>API Connected</span>
+        {/* Live API signal */}
+        <div className="hidden items-center gap-2 sm:flex">
+          <span
+            className={`h-2 w-2 rounded-full ${link === 'checking' ? 'animate-pulse' : 'animate-signal-blink'}`}
+            style={{ backgroundColor: linkColor }}
+          />
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-soft">
+            {linkLabel}
+          </span>
         </div>
       </div>
     </nav>

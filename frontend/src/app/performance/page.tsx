@@ -2,179 +2,187 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { BarChart, Bar, LineChart, Line, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import {
+  BarChart, Bar, Cell, LineChart, Line, ScatterChart, Scatter,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
+} from 'recharts';
 import { ArrowLeft } from 'lucide-react';
 import { api } from '@/lib/api';
 import { ModelPerformanceResponse } from '@/lib/types';
+import { Panel, Eyebrow } from '@/components/ui';
+import {
+  RmseGlyph, MaeGlyph, NasaScoreGlyph, AccuracyBandGlyph, EngineSchematic, GlyphProps,
+} from '@/components/icons';
+import { thermalRamp } from '@/lib/thermal';
 
+const AXIS = '#8C857B';
+const GRID = '#CFC9C0';
+const TOOLTIP = {
+  backgroundColor: '#FFFFFF',
+  border: '1px solid #CFC9C0',
+  borderRadius: '8px',
+  fontFamily: 'var(--font-mono)',
+  fontSize: '12px',
+  color: '#1A1714',
+};
+
+// Illustrative training trace + held-out predictions (not exposed by the API).
 const TRAINING_DATA = [
-  { epoch: 1, train_loss: 450, val_loss: 420 },
-  { epoch: 5, train_loss: 320, val_loss: 350 },
-  { epoch: 10, train_loss: 280, val_loss: 310 },
-  { epoch: 15, train_loss: 210, val_loss: 270 },
-  { epoch: 20, train_loss: 180, val_loss: 250 },
-  { epoch: 25, train_loss: 150, val_loss: 240 },
-  { epoch: 30, train_loss: 130, val_loss: 235 },
-  { epoch: 35, train_loss: 110, val_loss: 232 },
-  { epoch: 40, train_loss: 95, val_loss: 230 },
-  { epoch: 45, train_loss: 85, val_loss: 228 },
+  { epoch: 1, train: 450, val: 420 }, { epoch: 5, train: 320, val: 350 },
+  { epoch: 10, train: 280, val: 310 }, { epoch: 15, train: 210, val: 270 },
+  { epoch: 20, train: 180, val: 250 }, { epoch: 25, train: 150, val: 240 },
+  { epoch: 30, train: 130, val: 235 }, { epoch: 35, train: 110, val: 232 },
+  { epoch: 40, train: 95, val: 230 }, { epoch: 45, train: 85, val: 228 },
 ];
-
 const PREDICTION_DATA = [
-  { actual: 120, predicted: 118 },
-  { actual: 100, predicted: 102 },
-  { actual: 80, predicted: 82 },
-  { actual: 60, predicted: 58 },
-  { actual: 40, predicted: 42 },
-  { actual: 20, predicted: 22 },
-  { actual: 0, predicted: 2 },
-  { actual: 95, predicted: 93 },
-  { actual: 75, predicted: 77 },
-  { actual: 50, predicted: 48 },
-  { actual: 30, predicted: 32 },
-  { actual: 10, predicted: 12 },
+  { actual: 120, predicted: 118 }, { actual: 100, predicted: 102 }, { actual: 80, predicted: 82 },
+  { actual: 60, predicted: 58 }, { actual: 40, predicted: 42 }, { actual: 20, predicted: 22 },
+  { actual: 0, predicted: 5 }, { actual: 95, predicted: 93 }, { actual: 75, predicted: 80 },
+  { actual: 50, predicted: 44 }, { actual: 30, predicted: 33 }, { actual: 10, predicted: 14 },
 ];
-
 const MODEL_COMPARISON = [
-  { name: 'SimpleRNN', rmse: 15.9, mae: 11.22, color: '#ef4444' },
-  { name: 'GRU', rmse: 13.57, mae: 9.97, color: '#10b981' },
-  { name: 'LSTM', rmse: 13.71, mae: 10.26, color: '#f59e0b' },
-  { name: 'LSTM+Att', rmse: 14.52, mae: 10.33, color: '#8b5cf6' },
+  { name: 'SimpleRNN', rmse: 15.9, mae: 11.22 },
+  { name: 'GRU', rmse: 13.57, mae: 9.97 },
+  { name: 'LSTM', rmse: 13.71, mae: 10.26 },
+  { name: 'LSTM+Att', rmse: 14.52, mae: 10.33 },
 ];
+const DEPLOYED = 'LSTM+Att';
 
 export default function PerformancePage() {
-  const [performance, setPerformance] = useState<ModelPerformanceResponse | null>(null);
+  const [perf, setPerf] = useState<ModelPerformanceResponse | null>(null);
 
   useEffect(() => {
-    api.modelPerformance()
-      .then(setPerformance)
-      .catch((err) => console.error('Failed to load model performance:', err));
+    api.modelPerformance().then(setPerf).catch((e) => console.error('model-performance:', e));
   }, []);
 
-  const metrics = [
-    { label: 'RMSE', value: performance?.rmse ?? 13.57, unit: 'cycles' },
-    { label: 'MAE', value: performance?.mae ?? 9.97, unit: 'cycles' },
-    { label: 'NASA Score', value: performance?.nasa_score ?? 782, unit: 'points' },
+  // Fallbacks match the deployed LSTM+Attention model (metrics.json).
+  const metrics: { label: string; value: number; unit: string; Glyph: React.ComponentType<GlyphProps> }[] = [
+    { label: 'RMSE', value: perf?.rmse ?? 14.52, unit: 'cycles', Glyph: RmseGlyph },
+    { label: 'MAE', value: perf?.mae ?? 10.33, unit: 'cycles', Glyph: MaeGlyph },
+    { label: 'NASA Score', value: perf?.nasa_score ?? 603.4, unit: 'points', Glyph: NasaScoreGlyph },
+    { label: 'Within ±10', value: perf?.pct_within_10 ?? 59, unit: '%', Glyph: AccuracyBandGlyph },
   ];
 
   return (
-    <main className="min-h-screen bg-aerospace-darker p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 text-aerospace-accent hover:text-aerospace-accent/80 transition mb-4">
-            <ArrowLeft size={20} />
-            Back to Fleet
-          </Link>
-          <h1 className="text-4xl font-bold text-white mb-2">Model Performance</h1>
-          <p className="text-gray-400">LSTM + Attention architecture evaluation on NASA CMAPSS FD001</p>
-        </div>
+    <main id="main" className="mx-auto max-w-7xl px-6 py-8 md:px-8">
+      {/* Header */}
+      <div className="mb-8">
+        <Link href="/" className="mb-4 inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wide text-steel transition hover:text-steel-deep">
+          <ArrowLeft size={15} /> Back to fleet
+        </Link>
+        <Eyebrow>Evaluation · NASA CMAPSS FD001</Eyebrow>
+        <h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-ink md:text-4xl">
+          Model performance
+        </h1>
+        <p className="mt-1 text-ink-soft">LSTM + Attention, validated against held-out engine runs.</p>
+      </div>
 
-        {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {metrics.map((metric) => (
-            <div key={metric.label} className="bg-aerospace-dark border border-aerospace-accent/20 rounded-lg p-6">
-              <div className="text-sm text-gray-400 mb-2">{metric.label}</div>
-              <div className="text-3xl font-bold text-aerospace-accent mb-1">{metric.value}</div>
-              <div className="text-xs text-gray-500">{metric.unit}</div>
+      {/* Metric cards */}
+      <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {metrics.map(({ label, value, unit, Glyph }) => (
+          <Panel key={label} raised className="p-5">
+            <div className="flex items-center justify-between">
+              <Eyebrow>{label}</Eyebrow>
+              <span className="text-steel"><Glyph size={20} /></span>
+            </div>
+            <div className="mt-3 font-display text-3xl font-bold text-ink">
+              {value}
+              <span className="ml-1 font-mono text-xs font-normal text-ink-faint">{unit}</span>
+            </div>
+          </Panel>
+        ))}
+      </div>
+
+      {/* Architecture explainer */}
+      <Panel className="mb-8 grid items-center gap-6 p-6 lg:grid-cols-[1.2fr_1fr]">
+        <div>
+          <Eyebrow>What the model sees</Eyebrow>
+          <h2 className="mt-1 font-display text-xl font-semibold text-ink">A 30-cycle window across the gas path</h2>
+          <p className="mt-2 text-sm text-ink-soft">
+            Each prediction reads 30 consecutive flight cycles of 17 sensors spanning fan, compressor,
+            combustor and turbine. Stacked LSTMs with a dot-product attention head learn which cycles —
+            and which stations — carry the degradation signal.
+          </p>
+        </div>
+        <div className="rounded-lg border border-hairline bg-surface-raised p-4 text-ink-soft">
+          <EngineSchematic labels highlight="hpt" className="w-full" />
+        </div>
+      </Panel>
+
+      {/* Architecture comparison */}
+      <Panel className="mb-8 p-6">
+        <div className="mb-5 flex items-baseline justify-between">
+          <div>
+            <Eyebrow>Architectures</Eyebrow>
+            <h2 className="mt-1 font-display text-xl font-semibold text-ink">Four models, ranked</h2>
+          </div>
+          <span className="font-mono text-xs text-ink-soft">deployed · {DEPLOYED}</span>
+        </div>
+        <div className="grid gap-8 lg:grid-cols-2">
+          {(['rmse', 'mae'] as const).map((key) => (
+            <div key={key}>
+              <Eyebrow className="mb-2">{key.toUpperCase()} by model · lower is better</Eyebrow>
+              <ResponsiveContainer width="100%" height={230}>
+                <BarChart data={MODEL_COMPARISON} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="2 4" stroke={GRID} vertical={false} />
+                  <XAxis dataKey="name" stroke={AXIS} fontSize={11} fontFamily="var(--font-mono)" tickLine={false} />
+                  <YAxis stroke={AXIS} fontSize={11} fontFamily="var(--font-mono)" tickLine={false} />
+                  <Tooltip contentStyle={TOOLTIP} cursor={{ fill: '#E2DED7', opacity: 0.4 }} />
+                  <Bar dataKey={key} radius={[6, 6, 0, 0]}>
+                    {MODEL_COMPARISON.map((m) => (
+                      <Cell key={m.name} fill={m.name === DEPLOYED ? '#C8410B' : '#3B6E8F'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           ))}
         </div>
+        <p className="mt-3 font-mono text-xs text-ink-soft">
+          GRU posts the best RMSE (13.57); LSTM+Attention is deployed for its sharper attention-based attribution.
+        </p>
+      </Panel>
 
-        {/* Model Comparison */}
-        <div className="bg-aerospace-dark border border-aerospace-accent/20 rounded-lg p-6 mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6">Architecture Comparison</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">RMSE by Model</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={MODEL_COMPARISON}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
-                  <XAxis dataKey="name" stroke="#888" />
-                  <YAxis stroke="#888" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0a0f1e',
-                      border: '1px solid #00d4ff',
-                      borderRadius: '4px',
-                    }}
-                  />
-                  <Bar dataKey="rmse" fill="#00d4ff" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">MAE by Model</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={MODEL_COMPARISON}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
-                  <XAxis dataKey="name" stroke="#888" />
-                  <YAxis stroke="#888" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0a0f1e',
-                      border: '1px solid #00d4ff',
-                      borderRadius: '4px',
-                    }}
-                  />
-                  <Bar dataKey="mae" fill="#f59e0b" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
+      {/* Training history */}
+      <Panel className="mb-8 p-6">
+        <Eyebrow>Convergence</Eyebrow>
+        <h2 className="mb-4 mt-1 font-display text-xl font-semibold text-ink">Training vs validation loss</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={TRAINING_DATA} margin={{ top: 4, right: 12, left: -8, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="2 4" stroke={GRID} />
+            <XAxis dataKey="epoch" stroke={AXIS} fontSize={11} fontFamily="var(--font-mono)" tickLine={false} />
+            <YAxis stroke={AXIS} fontSize={11} fontFamily="var(--font-mono)" tickLine={false} />
+            <Tooltip contentStyle={TOOLTIP} />
+            <Legend wrapperStyle={{ fontFamily: 'var(--font-mono)', fontSize: '11px' }} />
+            <Line type="monotone" dataKey="train" name="Training" stroke="#3B6E8F" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="val" name="Validation" stroke="#B26A00" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </Panel>
 
-        {/* Training History */}
-        <div className="bg-aerospace-dark border border-aerospace-accent/20 rounded-lg p-6 mb-12">
-          <h2 className="text-2xl font-bold text-white mb-6">Training History</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={TRAINING_DATA}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
-              <XAxis dataKey="epoch" stroke="#888" label={{ value: 'Epoch', position: 'insideBottomRight', offset: -5 }} />
-              <YAxis stroke="#888" label={{ value: 'Loss', angle: -90, position: 'insideLeft' }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#0a0f1e',
-                  border: '1px solid #00d4ff',
-                  borderRadius: '4px',
-                }}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="train_loss" stroke="#00d4ff" name="Training Loss" strokeWidth={2} />
-              <Line type="monotone" dataKey="val_loss" stroke="#f59e0b" name="Validation Loss" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Predicted vs Actual */}
-        <div className="bg-aerospace-dark border border-aerospace-accent/20 rounded-lg p-6">
-          <h2 className="text-2xl font-bold text-white mb-6">Predicted vs Actual RUL</h2>
-          <ResponsiveContainer width="100%" height={350}>
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e3a5f" />
-              <XAxis dataKey="actual" stroke="#888" name="Actual RUL" label={{ value: 'Actual RUL (cycles)', position: 'insideBottomRight', offset: -5 }} />
-              <YAxis stroke="#888" name="Predicted RUL" label={{ value: 'Predicted RUL (cycles)', angle: -90, position: 'insideLeft' }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#0a0f1e',
-                  border: '1px solid #00d4ff',
-                  borderRadius: '4px',
-                }}
-                cursor={{ strokeDasharray: '3 3' }}
-              />
-              <Scatter name="Predictions" data={PREDICTION_DATA} fill="#00d4ff" />
-              {/* Perfect prediction line */}
-              <Line type="monotone" dataKey="actual" stroke="#888" name="Perfect Prediction" strokeDasharray="5 5" />
-            </ScatterChart>
-          </ResponsiveContainer>
-          <div className="mt-4 text-sm text-gray-400">
-            <p>
-              {performance?.pct_within_10 ?? 59}% of predictions within ±10 cycles |{' '}
-              {performance?.pct_within_25 ?? 92}% within ±25 cycles
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Predicted vs actual */}
+      <Panel className="p-6">
+        <Eyebrow>Calibration</Eyebrow>
+        <h2 className="mb-4 mt-1 font-display text-xl font-semibold text-ink">Predicted vs actual RUL</h2>
+        <ResponsiveContainer width="100%" height={340}>
+          <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: -4 }}>
+            <CartesianGrid strokeDasharray="2 4" stroke={GRID} />
+            <XAxis type="number" dataKey="actual" name="Actual" stroke={AXIS} fontSize={11} fontFamily="var(--font-mono)" tickLine={false} domain={[0, 125]} />
+            <YAxis type="number" dataKey="predicted" name="Predicted" stroke={AXIS} fontSize={11} fontFamily="var(--font-mono)" tickLine={false} domain={[0, 125]} />
+            <Tooltip contentStyle={TOOLTIP} cursor={{ strokeDasharray: '3 3' }} />
+            <ReferenceLine segment={[{ x: 0, y: 0 }, { x: 125, y: 125 }]} stroke="#8C857B" strokeDasharray="5 5" />
+            <Scatter data={PREDICTION_DATA}>
+              {PREDICTION_DATA.map((p, i) => (
+                <Cell key={i} fill={thermalRamp(1 - Math.min(Math.abs(p.actual - p.predicted) / 25, 1))} />
+              ))}
+            </Scatter>
+          </ScatterChart>
+        </ResponsiveContainer>
+        <p className="mt-3 font-mono text-xs text-ink-soft">
+          <span className="text-thermal-healthy-ink">{perf?.pct_within_10 ?? 59}%</span> within ±10 cycles ·{' '}
+          <span className="text-thermal-healthy-ink">{perf?.pct_within_25 ?? 92}%</span> within ±25 · point colour = error magnitude.
+        </p>
+      </Panel>
     </main>
   );
 }
