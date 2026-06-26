@@ -20,7 +20,7 @@ short_description: FastAPI backend for turbofan engine RUL prediction
 
 | Service | URL |
 |---|---|
-| Frontend Dashboard | _coming soon — Vercel_ |
+| Frontend Dashboard | run locally (see [Running Locally](#running-locally)) — Vercel-ready |
 | Backend API | https://mariangarabana-predictive-maintenance-api.hf.space |
 | API Docs | https://mariangarabana-predictive-maintenance-api.hf.space/docs |
 
@@ -59,6 +59,26 @@ Input: [batch, 30 cycles, 17 features]  ← 30-cycle sliding window
 
 ---
 
+## Dashboard
+
+A dark "aerospace ops-centre" interface built on a small custom design system. Two pages:
+
+**Fleet (`/`)**
+- RUL gauge for the selected engine, with a power-on sweep and a live needle.
+- "Run demo" plays the degradation: the whole fleet ticks down along each engine's own real trajectory, the gauge drops, and an alert fires when life runs low.
+- Live sensor telemetry (per-channel sparklines) and a "top sensor drivers" panel fed by the model's real gradient attribution. Hover a sensor name to see what it measures.
+
+**Performance (`/performance`)**
+- Headline metrics (RMSE, MAE, NASA score, within ±10) each with a plain-language explanation.
+- Where-the-data-comes-from summary and a primer on all four models (SimpleRNN / GRU / LSTM / LSTM + Attention).
+- Real predicted-vs-actual scatter from the 100 held-out engines scored on the live model.
+- Confusion matrix sorting engines into OK / Warning / Critical buckets.
+- Attention view and a maintenance-cost "what-if" tool whose failure risk comes from the model's real error (RMSE).
+
+Every backend call goes through `src/lib/api.ts`. The real evaluation metrics and predicted-vs-actual data are also bundled in the app, so the charts still show real numbers if the API is unreachable.
+
+---
+
 ## Repo Structure
 
 ```
@@ -89,11 +109,13 @@ predictive-maintenance-ai/
 │       ├── scaler.pkl             ← fitted MinMaxScaler + pipeline config
 │       └── metrics.json           ← RMSE, MAE, NASA Score, feature importance
 │
-├── frontend/                      ← React app (Week 2 — v0.dev generated)
-│   └── src/
-│       ├── components/            ← RULGauge, SensorChart, FleetGrid, AlertCard, ...
-│       ├── lib/api.ts             ← all backend calls (never fetch from components)
-│       └── public/demo-data/      ← pre-recorded engine sequences for live demo
+├── frontend/                      ← Next.js 14 dashboard (TypeScript + Tailwind)
+│   ├── src/app/                   ← pages: fleet (/), engine/[id], performance
+│   ├── src/components/            ← RULGauge, SensorChart, FeatureImportance,
+│   │                                WhatIfAnalyzer, AlertCard, Navigation, ui, icons
+│   ├── src/lib/                   ← api.ts (all backend calls), sensorMeta, thermal,
+│   │                                modelMetrics + evalData (bundled real fallbacks)
+│   └── public/demo-data/          ← pre-recorded engine sequences for the live demo
 │
 ├── presentation/
 │   └── demo_script.md
@@ -229,6 +251,7 @@ Full details and troubleshooting: [`docs/huggingface_deployment.md`](docs/huggin
 | `/engine/{id}` | GET | Single engine detail |
 | `/simulate/start` | POST | Start degradation simulation session |
 | `/simulate/next/{session_id}` | GET | Next cycle in simulation |
+| `/model-performance` | GET | Metrics + feature importance (frontend has a bundled fallback) |
 
 **POST /predict request:**
 ```json
@@ -267,11 +290,11 @@ Full details and troubleshooting: [`docs/huggingface_deployment.md`](docs/huggin
 
 | Layer | Tool | Status |
 |---|---|---|
-| Model | Keras + TensorFlow 2.15 | ✅ Trained |
-| Backend | FastAPI + Uvicorn | ✅ Built, deploy pending |
-| Backend hosting | Hugging Face Spaces | ⬜ Week 2 |
-| Frontend | React via v0.dev | ⬜ Week 2 |
-| Frontend hosting | Vercel | ⬜ Week 2 |
+| Model | Keras + TensorFlow 2.15 — stacked LSTM + Attention | ✅ Trained |
+| Backend | FastAPI + Uvicorn | ✅ Built |
+| Backend hosting | Hugging Face Spaces (Docker) | ✅ Live |
+| Frontend | Next.js 14 + TypeScript + Tailwind + Recharts + Framer Motion | ✅ Built |
+| Frontend hosting | Vercel | ⬜ Ready to deploy |
 | Dataset | NASA CMAPSS FD001 | ✅ In repo |
 
 ---
