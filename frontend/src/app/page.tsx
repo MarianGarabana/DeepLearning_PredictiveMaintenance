@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { EngineStatus, SimulateStartResponse, SimulateNextResponse } from '@/lib/types';
 import { RULGauge } from '@/components/RULGauge';
@@ -8,7 +10,9 @@ import { SensorChart } from '@/components/SensorChart';
 import { AlertCard } from '@/components/AlertCard';
 import { FeatureImportance } from '@/components/FeatureImportance';
 import { WhatIfAnalyzer } from '@/components/WhatIfAnalyzer';
-import { Play, Pause, RotateCcw } from 'lucide-react';
+import { Panel, Eyebrow, StatusAnnunciator } from '@/components/ui';
+import { EngineSchematic } from '@/components/icons';
+import { RUL_MAX, statusForRul, statusInk, rampForRul } from '@/lib/thermal';
 
 interface SimulationState {
   isRunning: boolean;
@@ -21,25 +25,36 @@ interface SimulationState {
   topSensors: any[];
 }
 
+const EMPTY_SIM: SimulationState = {
+  isRunning: false,
+  sessionId: null,
+  currentCycle: 0,
+  totalCycles: 0,
+  currentRul: 0,
+  currentSensors: [],
+  sensorHistory: [],
+  topSensors: [],
+};
+
 export default function Home() {
   const [engines, setEngines] = useState<EngineStatus[]>([]);
   const [selectedEngine, setSelectedEngine] = useState<EngineStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [alertDismissed, setAlertDismissed] = useState(false);
+  const [simulation, setSimulation] = useState<SimulationState>(EMPTY_SIM);
+  const prefersReduced = useReducedMotion();
 
-  const [simulation, setSimulation] = useState<SimulationState>({
-    isRunning: false,
-    sessionId: null,
-    currentCycle: 0,
-    totalCycles: 0,
-    currentRul: 0,
-    currentSensors: [],
-    sensorHistory: [],
-    topSensors: [],
-  });
+  // Most-degraded engine — the one the eye should land on first.
+  const mostCritical = useMemo(
+    () =>
+      engines.reduce<EngineStatus | null>(
+        (worst, e) => (!worst || e.rul < worst.rul ? e : worst),
+        null
+      ),
+    [engines]
+  );
 
-  // Load fleet on mount
   useEffect(() => {
     async function loadFleet() {
       try {
@@ -47,7 +62,8 @@ export default function Home() {
         const data = await api.fleet();
         setEngines(data);
         if (data.length > 0) {
-          setSelectedEngine(data[2]); // Default to ENG-003
+          const worst = data.reduce((w, e) => (e.rul < w.rul ? e : w), data[0]);
+          setSelectedEngine(worst);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load fleet');
@@ -58,222 +74,262 @@ export default function Home() {
     loadFleet();
   }, []);
 
-  // Simulation loop
   useEffect(() => {
     if (!simulation.isRunning || !simulation.sessionId) return;
-
     const timer = setInterval(async () => {
       try {
-        const nextData: SimulateNextResponse = await api.simulateNext(simulation.sessionId!);
-
-        setSimulation((prev) => {
-          const newHistory = [...prev.sensorHistory, nextData.sensors];
-          return {
-            ...prev,
-            currentCycle: nextData.cycle,
-            currentRul: nextData.rul,
-            currentSensors: nextData.sensors,
-            sensorHistory: newHistory.slice(-30), // Keep last 30
-            isRunning: !nextData.done,
-          };
-        });
-
-        if (nextData.done) {
-          setSimulation((prev) => ({ ...prev, isRunning: false }));
-        }
+        const next: SimulateNextResponse = await api.simulateNext(simulation.sessionId!);
+        setSimulation((prev) => ({
+          ...prev,
+          currentCycle: next.cycle,
+          currentRul: next.rul,
+          currentSensors: next.sensors,
+          sensorHistory: [...prev.sensorHistory, next.sensors].slice(-80),
+          isRunning: !next.done,
+        }));
       } catch (err) {
         console.error('Simulation error:', err);
         setSimulation((prev) => ({ ...prev, isRunning: false }));
       }
-    }, 1000); // 1 second between cycles
-
+    }, 1000);
     return () => clearInterval(timer);
   }, [simulation.isRunning, simulation.sessionId]);
 
   const startSimulation = async () => {
     try {
-      const startResp: SimulateStartResponse = await api.simulateStart({ scenario: 'degrading' });
-      setSimulation({
-        isRunning: true,
-        sessionId: startResp.session_id,
-        currentCycle: 0,
-        totalCycles: startResp.total_cycles,
-        currentRul: 125,
-        currentSensors: [],
-        sensorHistory: [],
-        topSensors: [],
-      });
+      const start: SimulateStartResponse = await api.simulateStart({ scenario: 'degrading' });
+      setSimulation({ ...EMPTY_SIM, isRunning: true, sessionId: start.session_id, totalCycles: start.total_cycles, currentRul: RUL_MAX });
       setAlertDismissed(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start simulation');
     }
   };
-
-  const pauseSimulation = () => {
-    setSimulation((prev) => ({ ...prev, isRunning: false }));
-  };
-
+  const pauseSimulation = () => setSimulation((p) => ({ ...p, isRunning: false }));
   const resetSimulation = () => {
-    setSimulation({
-      isRunning: false,
-      sessionId: null,
-      currentCycle: 0,
-      totalCycles: 0,
-      currentRul: 0,
-      currentSensors: [],
-      sensorHistory: [],
-      topSensors: [],
-    });
+    setSimulation(EMPTY_SIM);
     setAlertDismissed(false);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-aerospace-darker flex items-center justify-center">
-        <div className="text-aerospace-accent text-xl">Loading fleet...</div>
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <span className="eyebrow animate-pulse">Acquiring fleet telemetry…</span>
       </div>
     );
   }
-
   if (error) {
     return (
-      <div className="min-h-screen bg-aerospace-darker flex items-center justify-center">
-        <div className="text-aerospace-alert text-xl">Error: {error}</div>
+      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-2 text-center">
+        <span className="eyebrow text-thermal-critical">Telemetry link down</span>
+        <p className="text-ink-soft">{error}</p>
+        <p className="text-sm text-ink-faint">Confirm the API is running on :8000, then reload.</p>
       </div>
     );
   }
 
+  const liveRul =
+    simulation.isRunning || simulation.currentRul > 0
+      ? simulation.currentRul
+      : selectedEngine?.rul ?? 0;
+  const liveStatus = statusForRul(liveRul);
+
+  const fade = (delay = 0) =>
+    prefersReduced
+      ? {}
+      : {
+          initial: { opacity: 0, y: 16 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] as const },
+        };
+
+  // Scroll-reveal for below-fold sections.
+  const reveal = prefersReduced
+    ? {}
+    : {
+        initial: { opacity: 0, y: 24 },
+        whileInView: { opacity: 1, y: 0 },
+        viewport: { once: true, margin: '-80px' },
+        transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
+      };
+
   return (
-    <main className="min-h-screen bg-aerospace-darker p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">🛫 Predictive Maintenance</h1>
-          <p className="text-gray-400">Real-time turbofan engine RUL monitoring & prediction</p>
+    <main id="main" className="mx-auto max-w-7xl px-6 py-8 md:px-8">
+      {/* ── Hero: the gauge is the thesis ──────────────────────────────── */}
+      <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <motion.div {...fade(0)}>
+          <Panel raised className="flex h-full flex-col items-center p-8 text-center">
+            <Eyebrow>NASA CMAPSS FD001 · Turbofan RUL Monitor</Eyebrow>
+            <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink md:text-4xl">
+              Remaining Useful Life
+            </h1>
+            <p className="mt-2 max-w-md text-sm text-ink-soft">
+              Colour is heat is life. The needle reads how many flight cycles{' '}
+              <span className="font-mono text-ink">{selectedEngine?.engine_id}</span> has left
+              before its hot section needs intervention.
+            </p>
+            <div className="mt-4">
+              <RULGauge rul={liveRul} animate />
+            </div>
+          </Panel>
+        </motion.div>
+
+        <motion.div {...fade(0.08)}>
+          <Panel className="flex h-full flex-col gap-5 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <Eyebrow>Active engine</Eyebrow>
+                <h2 className="mt-1 font-display text-2xl font-semibold text-ink">
+                  {selectedEngine?.engine_id}
+                </h2>
+              </div>
+              <StatusAnnunciator status={liveStatus} />
+            </div>
+
+            <div className="rounded-lg border border-hairline bg-surface-raised p-4 text-ink-soft">
+              <EngineSchematic labels highlight="combustor" className="w-full" />
+              <p className="mt-2 text-center text-xs text-ink-faint">
+                17 sensors along the gas path feed the model — heat concentrates in the core.
+              </p>
+            </div>
+
+            <div className="mt-auto">
+              <Eyebrow className="mb-2">Degradation demo</Eyebrow>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={startSimulation}
+                  disabled={simulation.isRunning}
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-steel px-3 py-2.5 font-display text-sm font-semibold text-white transition hover:bg-steel-deep disabled:opacity-40"
+                >
+                  <Play size={15} /> Run
+                </button>
+                <button
+                  onClick={pauseSimulation}
+                  disabled={!simulation.isRunning}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-hairline bg-surface-raised px-3 py-2.5 font-display text-sm font-semibold text-ink transition hover:border-steel disabled:opacity-40"
+                >
+                  <Pause size={15} /> Pause
+                </button>
+                <button
+                  onClick={resetSimulation}
+                  className="flex items-center justify-center gap-1.5 rounded-lg border border-hairline bg-surface-raised px-3 py-2.5 font-display text-sm font-semibold text-ink transition hover:border-steel"
+                >
+                  <RotateCcw size={15} /> Reset
+                </button>
+              </div>
+              {simulation.currentCycle > 0 && (
+                <div className="mt-3">
+                  <div className="mb-1 flex justify-between font-mono text-xs text-ink-soft">
+                    <span>Cycle {simulation.currentCycle}</span>
+                    <span>{simulation.totalCycles} total</span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-sunk">
+                    <div
+                      className="h-full rounded-full bg-steel transition-all"
+                      style={{ width: `${(simulation.currentCycle / simulation.totalCycles) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </Panel>
+        </motion.div>
+      </section>
+
+      {/* ── Fleet strip ────────────────────────────────────────────────── */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-end justify-between">
+          <div>
+            <Eyebrow>Fleet</Eyebrow>
+            <h2 className="mt-1 font-display text-xl font-semibold text-ink">Monitored engines</h2>
+          </div>
+          <div className="hidden items-center gap-2 sm:flex">
+            <span className="eyebrow">Critical</span>
+            <span className="thermal-gradient h-1.5 w-28 rounded-full" />
+            <span className="eyebrow">Nominal</span>
+          </div>
         </div>
 
-        {/* Fleet Grid */}
-        <div className="mb-12">
-          <h2 className="text-2xl font-bold text-white mb-4">Fleet Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {engines.map((engine) => (
-              <button
+        <motion.div
+          className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6"
+          initial={prefersReduced ? false : 'hidden'}
+          animate="show"
+          variants={{ show: { transition: { staggerChildren: 0.05 } } }}
+        >
+          {engines.map((engine) => {
+            const isSelected = selectedEngine?.engine_id === engine.engine_id;
+            const isCritical = mostCritical?.engine_id === engine.engine_id;
+            const status = statusForRul(engine.rul);
+            const ink = statusInk(status);
+            return (
+              <motion.button
                 key={engine.engine_id}
+                variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
                 onClick={() => {
                   setSelectedEngine(engine);
                   resetSimulation();
                 }}
-                className={`text-left bg-aerospace-dark border rounded-lg p-4 transition-all hover:border-aerospace-accent/50 ${
-                  selectedEngine?.engine_id === engine.engine_id
-                    ? 'border-aerospace-accent/80 shadow-lg shadow-aerospace-accent/20'
-                    : 'border-aerospace-accent/20'
-                }`}
+                className={`hairline-hover group rounded-xl border bg-surface-raised p-4 text-left shadow-panel ${
+                  isSelected ? 'border-steel ring-1 ring-steel' : 'border-hairline'
+                } ${isCritical && !isSelected ? 'animate-halo-pulse' : ''}`}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-bold text-white">{engine.engine_id}</h3>
-                  <span
-                    className={`px-2 py-1 rounded text-xs font-semibold ${
-                      engine.status === 'OK'
-                        ? 'bg-aerospace-success/20 text-aerospace-success'
-                        : engine.status === 'WARNING'
-                        ? 'bg-aerospace-alert/20 text-aerospace-alert'
-                        : 'bg-red-500/20 text-red-400'
-                    }`}
-                  >
-                    {engine.status}
+                <div className="flex items-center justify-between">
+                  <span className="font-display text-sm font-semibold text-ink">
+                    {engine.engine_id}
+                  </span>
+                  <StatusAnnunciator status={status} size={13} className="!px-1.5 !py-0.5" />
+                </div>
+                <div className="mt-3 flex items-baseline gap-1">
+                  <span className="font-display text-2xl font-bold" style={{ color: ink }}>
+                    {engine.rul.toFixed(0)}
+                  </span>
+                  <span className="font-mono text-[10px] uppercase tracking-wide text-ink-faint">
+                    cyc
                   </span>
                 </div>
-                <div className="text-2xl font-bold text-aerospace-accent">{engine.rul.toFixed(1)}</div>
-                <div className="text-xs text-gray-500">Cycles Remaining</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Main Content */}
-        {selectedEngine && (
-          <div className="space-y-8">
-            {/* Hero Section: Gauge + Controls */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 bg-aerospace-dark border border-aerospace-accent/20 rounded-lg p-8 flex items-center justify-center">
-                <RULGauge
-                  rul={simulation.isRunning || simulation.currentRul > 0 ? simulation.currentRul : selectedEngine.rul}
-                  animate={true}
-                />
-              </div>
-
-              {/* Control Panel */}
-              <div className="space-y-4">
-                <div className="bg-aerospace-dark border border-aerospace-accent/20 rounded-lg p-6">
-                  <h3 className="text-lg font-bold text-white mb-4">Simulation Controls</h3>
-                  <div className="space-y-3">
-                    <button
-                      onClick={startSimulation}
-                      disabled={simulation.isRunning}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-aerospace-accent text-aerospace-darker font-bold rounded hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    >
-                      <Play size={18} />
-                      Start Demo
-                    </button>
-                    <button
-                      onClick={pauseSimulation}
-                      disabled={!simulation.isRunning}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-aerospace-alert text-aerospace-darker font-bold rounded hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                    >
-                      <Pause size={18} />
-                      Pause
-                    </button>
-                    <button
-                      onClick={resetSimulation}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-700 text-white font-bold rounded hover:bg-gray-600 transition"
-                    >
-                      <RotateCcw size={18} />
-                      Reset
-                    </button>
-                  </div>
-
-                  {/* Progress */}
-                  {simulation.currentCycle > 0 && (
-                    <div className="mt-6 pt-4 border-t border-aerospace-accent/20">
-                      <div className="text-sm text-gray-400 mb-2">
-                        Progress: {simulation.currentCycle} / {simulation.totalCycles} cycles
-                      </div>
-                      <div className="w-full bg-aerospace-dark rounded-full h-2 border border-aerospace-accent/20">
-                        <div
-                          className="bg-aerospace-accent h-2 rounded-full transition-all"
-                          style={{
-                            width: `${(simulation.currentCycle / simulation.totalCycles) * 100}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
+                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-surface-sunk">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${(engine.rul / RUL_MAX) * 100}%`,
+                      backgroundColor: rampForRul(engine.rul),
+                    }}
+                  />
                 </div>
-              </div>
-            </div>
+              </motion.button>
+            );
+          })}
+        </motion.div>
+      </section>
 
-            {/* Sensor Chart & Features */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <SensorChart sensors={simulation.sensorHistory} />
-              <FeatureImportance sensors={simulation.topSensors.length > 0 ? simulation.topSensors : selectedEngine.rul > 0 ? [
-                { name: 'T50', importance: 0.148 },
-                { name: 'P30', importance: 0.132 },
-                { name: 'Nf', importance: 0.119 },
-                { name: 'NRc', importance: 0.105 },
-                { name: 'T24', importance: 0.098 },
-              ] : []} />
-            </div>
+      {/* ── Analysis ───────────────────────────────────────────────────── */}
+      {selectedEngine && (
+        <>
+          <motion.section className="mt-10 grid gap-6 lg:grid-cols-2" {...reveal}>
+            <SensorChart sensors={simulation.sensorHistory} />
+            <FeatureImportance
+              sensors={
+                simulation.topSensors.length > 0
+                  ? simulation.topSensors
+                  : [
+                      { name: 'T50', importance: 0.148 },
+                      { name: 'P30', importance: 0.132 },
+                      { name: 'Nf', importance: 0.119 },
+                      { name: 'NRc', importance: 0.105 },
+                      { name: 'T24', importance: 0.098 },
+                    ]
+              }
+            />
+          </motion.section>
 
-            {/* What-If Analyzer */}
-            <WhatIfAnalyzer currentRul={simulation.isRunning || simulation.currentRul > 0 ? simulation.currentRul : selectedEngine.rul} />
-          </div>
-        )}
-      </div>
+          <motion.section className="mt-6" {...reveal}>
+            <WhatIfAnalyzer currentRul={liveRul} />
+          </motion.section>
+        </>
+      )}
 
-      {/* Alert Card */}
       {!alertDismissed && (
         <AlertCard
-          rul={simulation.isRunning || simulation.currentRul > 0 ? simulation.currentRul : selectedEngine?.rul || 0}
+          rul={liveRul}
           engineId={selectedEngine?.engine_id || 'N/A'}
           onDismiss={() => setAlertDismissed(true)}
         />

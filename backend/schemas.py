@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 class SensorImportance(BaseModel):
@@ -59,3 +59,12 @@ class SimulateNextResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
+
+
+class ModelPerformanceResponse(BaseModel):
+    rmse: float
+    mae: float
+    nasa_score: float
+    pct_within_10: float
+    pct_within_25: float
+    feature_importance: Dict[str, float]

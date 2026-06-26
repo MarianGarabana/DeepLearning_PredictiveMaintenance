@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Titanium & Ember — mirror of tailwind tokens for raw CSS / SVG use */
+  --ground: #e9e6e1;
+  --surface: #fbfaf8;
+  --surface-raised: #ffffff;
+  --surface-sunk: #e2ded7;
+  --hairline: #cfc9c0;
+  --ink: #1a1714;
+  --ink-soft: #5a544c;
+  --ink-faint: #8c857b;
+  --steel: #3b6e8f;
+  --steel-deep: #2a506a;
+
+  --thermal-healthy: #2e9e7b;
+  --thermal-healthy-ink: #1f6e55;
+  --thermal-warm: #e0a100;
+  --thermal-warm-ink: #946800;
+  --thermal-ember: #c8410b;
+  --thermal-critical: #8e1b0e;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -10,59 +31,122 @@
 
 html,
 body {
-  background-color: #05080f;
-  color: #ffffff;
-  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--ground);
+  /* faint brushed-titanium wash so the ground never reads dead-flat */
+  background-image: radial-gradient(
+    120% 80% at 50% -10%,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0) 55%
+  );
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Scrollbar styling */
+/* Eyebrow / instrument label utility — uppercase mono with wide tracking */
+.eyebrow {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.6875rem;
+  color: var(--ink-soft);
+}
+
+/* The signature gradient: critical → nominal, matching thermalRamp(0→1)
+   and the gauge (critical on the left, healthy on the right). */
+.thermal-gradient {
+  background-image: linear-gradient(
+    90deg,
+    var(--thermal-critical) 0%,
+    var(--thermal-ember) 22%,
+    var(--thermal-warm) 50%,
+    var(--thermal-healthy) 100%
+  );
+}
+
+/* Hairline that warms to steel on hover — used by instrument tiles. */
+.hairline-hover {
+  border-color: var(--hairline);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.hairline-hover:hover {
+  border-color: var(--steel);
+}
+
+/* Accessible focus ring on the light ground. */
+:where(a, button, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--steel);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Skip link (revealed on focus) */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  z-index: 100;
+  background: var(--ink);
+  color: var(--surface-raised);
+  padding: 0.5rem 0.875rem;
+  border-radius: 6px;
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 1rem;
+}
+
+/* Scrollbar — titanium track, steel thumb */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #0a0f1e;
+  background: var(--surface-sunk);
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #00d4ff;
-  border-radius: 4px;
+  background: var(--hairline);
+  border: 2px solid var(--surface-sunk);
+  border-radius: 6px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #00b8d4;
+  background: var(--steel);
 }
 
-/* Form controls */
+/* Range slider — recessed titanium track + steel control */
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-sunk);
+  box-shadow: inset 0 1px 2px rgba(26, 23, 20, 0.18);
 }
-
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
-  background: #00d4ff;
+  width: 18px;
+  height: 18px;
+  background: var(--surface-raised);
+  border: 2px solid var(--steel);
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 0 8px #00d4ff;
+  box-shadow: 0 1px 3px rgba(26, 23, 20, 0.25);
 }
-
 input[type='range']::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  background: #00d4ff;
+  width: 18px;
+  height: 18px;
+  background: var(--surface-raised);
+  border: 2px solid var(--steel);
   border-radius: 50%;
   cursor: pointer;
-  border: none;
-  box-shadow: 0 0 8px #00d4ff;
+  box-shadow: 0 1px 3px rgba(26, 23, 20, 0.25);
 }
 
-/* Animations */
+/* Fallback animations (framer-motion handles the orchestrated work) */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -71,10 +155,9 @@ input[type='range']::-moz-range-thumb {
     opacity: 1;
   }
 }
-
 @keyframes slideIn {
   from {
-    transform: translateY(20px);
+    transform: translateY(16px);
     opacity: 0;
   }
   to {
@@ -82,11 +165,21 @@ input[type='range']::-moz-range-thumb {
     opacity: 1;
   }
 }
-
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.4s ease-out both;
+}
+.animate-slide-in {
+  animation: slideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.animate-slide-in {
-  animation: slideIn 0.3s ease-in-out;
+/* Respect reduced-motion globally as a safety net. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
