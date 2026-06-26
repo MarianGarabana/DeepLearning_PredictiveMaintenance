@@ -16,13 +16,13 @@ Install Git LFS if you do not already have it:
 git lfs install
 ```
 
-Add your Hugging Face Space as a Git remote:
+Add the Hugging Face Space as a Git remote:
 
 ```bash
-git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/YOUR_SPACE_NAME
+git remote add hf https://huggingface.co/spaces/MarianGarabana/predictive-maintenance-api
 ```
 
-If Git asks for credentials, use your Hugging Face username and a token from:
+If Git asks for credentials, use the Hugging Face account that owns the Space and a token from:
 
 ```text
 https://huggingface.co/settings/tokens
@@ -50,8 +50,8 @@ Uvicorn running on http://0.0.0.0:7860
 Then test:
 
 ```text
-https://YOUR_USERNAME-YOUR_SPACE_NAME.hf.space/health
-https://YOUR_USERNAME-YOUR_SPACE_NAME.hf.space/docs
+https://mariangarabana-predictive-maintenance-api.hf.space/health
+https://mariangarabana-predictive-maintenance-api.hf.space/docs
 ```
 
 Expected `/health` response:
@@ -66,7 +66,7 @@ Expected `/health` response:
 Test the demo simulation:
 
 ```bash
-curl -X POST https://YOUR_USERNAME-YOUR_SPACE_NAME.hf.space/simulate/start \
+curl -X POST https://mariangarabana-predictive-maintenance-api.hf.space/simulate/start \
   -H "Content-Type: application/json" \
   -d '{"scenario":"degrading"}'
 ```

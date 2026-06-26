@@ -131,18 +131,91 @@ notebooks/03_model_training.ipynb   ← trains 4 models, saves backend/model/lst
 notebooks/04_evaluation.ipynb       ← metrics, plots, frontend/public/demo-data/*.json
 ```
 
-### 4. Run backend locally
+---
+
+## Running Locally
+
+The app is two services: a **FastAPI backend** (serves the model) and a **Next.js frontend**
+(the dashboard). Run them in two terminals. The trained model, scaler, and demo data are
+committed, so you can run both without retraining.
+
+### Backend — FastAPI (port 8000)
 
 ```bash
 cd backend
-pip install -r requirements.txt
+pip install -r requirements.txt      # reuse the dl_project env, or a fresh venv
 uvicorn main:app --reload --port 8000
-# → http://localhost:8000/docs
 ```
 
-### 5. Deploy backend to Hugging Face Spaces
+- API docs (Swagger): http://localhost:8000/docs
+- Health check: http://localhost:8000/health → `{"status": "ok", "model_loaded": true}`
 
-Use the root `Dockerfile` and follow [`docs/huggingface_deployment.md`](docs/huggingface_deployment.md).
+### Frontend — Next.js (port 3000)
+
+Requires Node.js 18+. In a second terminal:
+
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local     # then point it at the backend (see below)
+npm run dev
+```
+
+- Dashboard: http://localhost:3000
+
+`.env.local` controls which backend the dashboard talks to via `NEXT_PUBLIC_API_URL`:
+
+```bash
+# Local backend (the uvicorn command above)
+NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# Or the deployed Hugging Face backend (no local backend needed)
+NEXT_PUBLIC_API_URL=https://mariangarabana-predictive-maintenance-api.hf.space
+```
+
+> Restart `npm run dev` after changing `.env.local` — Next.js only reads it at startup.
+
+---
+
+## Deploying to Hugging Face Spaces
+
+The backend deploys to a **Docker Space**. The root `Dockerfile` is the build entrypoint: it
+installs `backend/requirements.txt`, copies `backend/` and `frontend/public/demo-data/`, and
+starts FastAPI on port **7860** (the port Spaces expects). Notebooks, raw data, and frontend
+build folders are excluded via `.dockerignore`.
+
+### One-time setup
+
+```bash
+git lfs install                       # the .keras model is tracked via LFS
+git remote add hf https://huggingface.co/spaces/MarianGarabana/predictive-maintenance-api
+```
+
+When Git prompts for credentials, use the Hugging Face account that owns the Space and an
+access token from https://huggingface.co/settings/tokens (a *write* token).
+
+### Deploy
+
+```bash
+git push hf main                      # HF builds the Docker image automatically
+```
+
+Watch the build in the Space's **Logs** tab. A successful start logs:
+
+```text
+Model loaded. Input shape: (None, 30, 17)
+Uvicorn running on http://0.0.0.0:7860
+```
+
+Then verify:
+
+- https://mariangarabana-predictive-maintenance-api.hf.space/health
+- https://mariangarabana-predictive-maintenance-api.hf.space/docs
+
+Once the frontend is hosted, add an `ALLOWED_ORIGINS` variable in the Space's **Settings** so
+the browser can call the API (e.g. `https://YOUR_APP.vercel.app,http://localhost:3000`).
+
+Full details and troubleshooting: [`docs/huggingface_deployment.md`](docs/huggingface_deployment.md).
 
 ---
 
