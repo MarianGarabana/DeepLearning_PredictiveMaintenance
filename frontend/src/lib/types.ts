@@ -53,3 +53,12 @@ export interface HealthResponse {
   status: string;
   model_loaded: boolean;
 }
+
+export interface ModelPerformanceResponse {
+  rmse: number;
+  mae: number;
+  nasa_score: number;
+  pct_within_10: number;
+  pct_within_25: number;
+  feature_importance: Record<string, number>;
+}

@@ -14,7 +14,7 @@ from schemas import (
     PredictRequest, PredictResponse,
     EngineStatus, EngineDetail,
     SimulateStartRequest, SimulateStartResponse, SimulateNextResponse,
-    HealthResponse,
+    HealthResponse, ModelPerformanceResponse,
 )
 from utils import rul_to_status
 
@@ -37,11 +37,21 @@ app.add_middleware(
 _simulate_sessions: dict = {}
 
 DEMO_DATA_DIR = Path(__file__).parent.parent / 'frontend' / 'public' / 'demo-data'
+METRICS_PATH = Path(__file__).parent / 'model' / 'metrics.json'
 
 
 @app.get('/health', response_model=HealthResponse)
 def health():
     return {'status': 'ok', 'model_loaded': pred_module.is_loaded()}
+
+
+@app.get('/model-performance', response_model=ModelPerformanceResponse)
+def model_performance():
+    if not METRICS_PATH.exists():
+        raise HTTPException(status_code=404,
+            detail='metrics.json not found — run notebook 04_evaluation.ipynb')
+    with open(METRICS_PATH) as f:
+        return json.load(f)
 
 
 @app.post('/predict', response_model=PredictResponse)

@@ -7,6 +7,7 @@ import {
   SimulateStartResponse,
   SimulateNextResponse,
   HealthResponse,
+  ModelPerformanceResponse,
 } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -64,5 +65,9 @@ export const api = {
 
   async simulateNext(sessionId: string): Promise<SimulateNextResponse> {
     return fetchAPI(`/simulate/next/${sessionId}`);
+  },
+
+  async modelPerformance(): Promise<ModelPerformanceResponse> {
+    return fetchAPI('/model-performance');
   },
 };

@@ -1,15 +1,11 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BarChart, Bar, LineChart, Line, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { ArrowLeft } from 'lucide-react';
-
-// Mock performance data
-const METRICS = [
-  { label: 'RMSE', value: 13.57, unit: 'cycles' },
-  { label: 'MAE', value: 9.97, unit: 'cycles' },
-  { label: 'NASA Score', value: 782, unit: 'points' },
-];
+import { api } from '@/lib/api';
+import { ModelPerformanceResponse } from '@/lib/types';
 
 const TRAINING_DATA = [
   { epoch: 1, train_loss: 450, val_loss: 420 },
@@ -47,6 +43,20 @@ const MODEL_COMPARISON = [
 ];
 
 export default function PerformancePage() {
+  const [performance, setPerformance] = useState<ModelPerformanceResponse | null>(null);
+
+  useEffect(() => {
+    api.modelPerformance()
+      .then(setPerformance)
+      .catch((err) => console.error('Failed to load model performance:', err));
+  }, []);
+
+  const metrics = [
+    { label: 'RMSE', value: performance?.rmse ?? 13.57, unit: 'cycles' },
+    { label: 'MAE', value: performance?.mae ?? 9.97, unit: 'cycles' },
+    { label: 'NASA Score', value: performance?.nasa_score ?? 782, unit: 'points' },
+  ];
+
   return (
     <main className="min-h-screen bg-aerospace-darker p-8">
       <div className="max-w-7xl mx-auto">
@@ -62,7 +72,7 @@ export default function PerformancePage() {
 
         {/* Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {METRICS.map((metric) => (
+          {metrics.map((metric) => (
             <div key={metric.label} className="bg-aerospace-dark border border-aerospace-accent/20 rounded-lg p-6">
               <div className="text-sm text-gray-400 mb-2">{metric.label}</div>
               <div className="text-3xl font-bold text-aerospace-accent mb-1">{metric.value}</div>
@@ -158,7 +168,10 @@ export default function PerformancePage() {
             </ScatterChart>
           </ResponsiveContainer>
           <div className="mt-4 text-sm text-gray-400">
-            <p>59% of predictions within ±10 cycles | 92% within ±25 cycles</p>
+            <p>
+              {performance?.pct_within_10 ?? 59}% of predictions within ±10 cycles |{' '}
+              {performance?.pct_within_25 ?? 92}% within ±25 cycles
+            </p>
           </div>
         </div>
       </div>
