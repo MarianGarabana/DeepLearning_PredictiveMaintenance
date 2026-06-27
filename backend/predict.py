@@ -111,12 +111,27 @@ def mc_dropout_predict(x: np.ndarray, n_samples: int = MC_DROPOUT_SAMPLES) -> Tu
     MC Dropout (Gal & Ghahramani, 2016): run the model n_samples times with
     dropout kept active (training=True) and treat the spread of outputs as
     an epistemic uncertainty estimate. Returns (mean_rul, std_rul).
+
+    BatchNormalization layers are frozen (trainable=False) for the duration:
+    calling a model with training=True also makes any BatchNorm layers
+    update their moving mean/variance as a side effect, which would corrupt
+    the deterministic point estimate used for future requests. Setting
+    trainable=False makes BatchNorm ignore training=True and stay in
+    inference mode, while Dropout (no such guard) still randomizes normally.
     """
-    x_tensor = tf.constant(x)
-    samples = np.array([
-        _extract_rul_scalar(_MODEL(x_tensor, training=True))
-        for _ in range(n_samples)
-    ])
+    bn_layers = [layer for layer in _MODEL.layers if isinstance(layer, keras.layers.BatchNormalization)]
+    prev_trainable = [layer.trainable for layer in bn_layers]
+    for layer in bn_layers:
+        layer.trainable = False
+    try:
+        x_tensor = tf.constant(x)
+        samples = np.array([
+            _extract_rul_scalar(_MODEL(x_tensor, training=True))
+            for _ in range(n_samples)
+        ])
+    finally:
+        for layer, was_trainable in zip(bn_layers, prev_trainable):
+            layer.trainable = was_trainable
     return float(samples.mean()), float(samples.std())
 
 
