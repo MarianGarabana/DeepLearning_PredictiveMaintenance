@@ -2,6 +2,7 @@
 Inference pipeline — mirrors 02_preprocessing.ipynb EXACTLY.
 Load once at startup; call predict() per request.
 """
+import os
 import numpy as np
 import joblib
 from pathlib import Path
@@ -14,12 +15,15 @@ from utils import rul_to_status, confidence_interval
 _MODEL  = None
 _META   = None   # dict: scaler, feature_cols, drop_sensors, sequence_length, rul_cap
 _GRADS  = None   # attention model for feature importance
+_USE_MC_DROPOUT = False  # set at load time depending on whether _MODEL has Dropout layers
 
 DEFAULT_OP_SETTINGS = [0.0, 0.0, 100.0]  # FD001 nominal operating condition.
 
+MC_DROPOUT_SAMPLES = int(os.getenv('MC_DROPOUT_SAMPLES', '30'))
+
 
 def _load():
-    global _MODEL, _META
+    global _MODEL, _META, _USE_MC_DROPOUT
     model_path  = Path(__file__).parent / 'model' / 'lstm_model.keras'
     scaler_path = Path(__file__).parent / 'model' / 'scaler.pkl'
 
@@ -39,6 +43,12 @@ def _load():
         custom_objects={'DotProductAttention': DotProductAttention}
     )
     print(f'Model loaded. Input shape: {_MODEL.input_shape}')
+
+    _USE_MC_DROPOUT = any(isinstance(layer, keras.layers.Dropout) for layer in _MODEL.layers)
+    if _USE_MC_DROPOUT:
+        print(f'Uncertainty estimation: MC Dropout ({MC_DROPOUT_SAMPLES} samples)')
+    else:
+        print('Uncertainty estimation: static ±15% heuristic (no Dropout layers found in model)')
 
 
 def is_loaded() -> bool:
@@ -83,6 +93,33 @@ def _preprocess(sensor_window: List[List[float]]) -> np.ndarray:
     return scaled[np.newaxis, :, :].astype(np.float32)
 
 
+def _extract_rul_scalar(output) -> float:
+    """
+    Pulls the scalar RUL value out of a model call's output, whether that
+    output is a single tensor or a tuple/list (e.g. attention variants that
+    also return attention weights). Mirrors the [0][0] indexing predict()
+    already relies on for the deterministic point estimate.
+    """
+    if isinstance(output, (list, tuple)):
+        output = output[0]
+    arr = output.numpy() if hasattr(output, 'numpy') else np.asarray(output)
+    return float(arr.reshape(-1)[0])
+
+
+def mc_dropout_predict(x: np.ndarray, n_samples: int = MC_DROPOUT_SAMPLES) -> Tuple[float, float]:
+    """
+    MC Dropout (Gal & Ghahramani, 2016): run the model n_samples times with
+    dropout kept active (training=True) and treat the spread of outputs as
+    an epistemic uncertainty estimate. Returns (mean_rul, std_rul).
+    """
+    x_tensor = tf.constant(x)
+    samples = np.array([
+        _extract_rul_scalar(_MODEL(x_tensor, training=True))
+        for _ in range(n_samples)
+    ])
+    return float(samples.mean()), float(samples.std())
+
+
 def _feature_importance(x: np.ndarray) -> List[Tuple[str, float]]:
     """Gradient-based importance proxy — absolute grad of output w.r.t input."""
     x_tensor = tf.constant(x)
@@ -106,7 +143,13 @@ def predict(sensor_window: List[List[float]]) -> dict:
     rul_raw = float(_MODEL.predict(x, verbose=0)[0][0])
     rul = max(0.0, round(rul_raw, 1))
 
-    ci_lo, ci_hi = confidence_interval(rul)
+    if _USE_MC_DROPOUT:
+        _, std_rul = mc_dropout_predict(x)
+        ci_lo = max(0.0, rul - 1.96 * std_rul)
+        ci_hi = rul + 1.96 * std_rul
+    else:
+        ci_lo, ci_hi = confidence_interval(rul)
+
     status = rul_to_status(rul)
 
     top_sensors = [
