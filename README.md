@@ -1,13 +1,3 @@
----
-title: Aerospace Predictive Maintenance API
-emoji: 🛫
-colorFrom: blue
-colorTo: blue
-sdk: docker
-pinned: false
-short_description: FastAPI backend for turbofan engine RUL prediction
----
-
 # Aerospace Predictive Maintenance AI
 
 **IE University — Deep Learning Final Project | June 2026 | Prof. Concepción Díaz**
@@ -41,7 +31,7 @@ traces back to the 100 held-out FD001 engines scored through the deployed networ
 
 | Service | URL |
 |---|---|
-| Frontend Dashboard | run locally (see [Running Locally](#running-locally)) — Vercel-ready |
+| Frontend Dashboard | https://aerospace-predictive-maintenance.vercel.app/ |
 | Backend API | https://mariangarabana-predictive-maintenance-api.hf.space |
 | API Docs | https://mariangarabana-predictive-maintenance-api.hf.space/docs |
 
@@ -122,33 +112,33 @@ Full design rationale and the class-concept mapping: [`docs/architecture.md`](do
 
 ## Deep Learning Concepts Applied (from class)
 
-This project is a deliberate walk through the course curriculum. Each design choice traces to a
-specific block — and where the syllabus taught a concept on classification, we adapted it to our
-**regression** task (`Dense(1)` linear output + Huber/MSE loss instead of sigmoid + cross-entropy).
+Each design choice maps to a concept from the course. Where a topic was taught on
+classification, we adapted it to our **regression** task (`Dense(1)` linear output + Huber/MSE
+loss instead of sigmoid + cross-entropy).
 
-| Concept | Course block | Where it's applied here |
-|---|---|---|
-| **Choosing the right family** | B1 ANN / B2 CNN / B4 RNN | RUL is a *temporal* signal → RNN family. ANN (flattening loses order) and CNN (no spatial structure) explicitly rejected — see `notebooks/03` markdown. |
-| **SimpleRNN & vanishing gradient** | Block 4 | Trained as the baseline; it's measurably worst (RMSE 15.90), reproducing the lesson that tanh recurrence dilutes early-cycle signal over 30 steps. |
-| **GRU (reset/update gates)** | Block 4 | Second model — fewer params, comparable accuracy; actually best RMSE here. |
-| **LSTM (cell-state highway, 4 gates)** | Block 4 | `LSTM(128, return_sequences=True) → LSTM(64)` stacked, the Block-4 sequential pattern, adapted from classification to regression. |
-| **Attention mechanism** | Block 1 / 4 | Custom `DotProductAttention` over the 30 timesteps: `softmax(XXᵀ/√d)·X` — lets the model weight cycles by relevance and exposes *which* cycles drove the prediction. |
-| **Sliding-window sequence modelling** | Block 4 | 30-cycle overlapping windows per engine turn each life into many `[30, 17]` training samples. |
-| **Loss functions** | Block 1 | **Huber loss (δ=10)** — MSE for small errors, MAE for large — robust to the few engines with extreme RUL. Evaluation uses RMSE / MAE. |
-| **Optimizer & learning-rate schedule** | Block 1 / 4 | Adam (lr 1e-3) + `ReduceLROnPlateau` (halve on plateau) — the "LR too large = bouncing" lesson. |
-| **Mini-batch gradient descent** | Block 1 | `batch_size=64`, 80/20 train/val split (the "golden rule"). |
-| **Regularization — Dropout** | Block 2 | `Dropout(0.2)` after each recurrent layer to prevent co-adaptation; reused at inference for MC Dropout. |
-| **Regularization — L2 / weight decay** | Block 1 / 2 | `kernel_regularizer=l2(1e-4)` on recurrent and dense layers. |
-| **BatchNormalization** | Block 2 | Stabilizes the dense head's training. |
-| **Overfitting control / callbacks** | Block 1 / 4 | `EarlyStopping(patience=10, restore_best_weights)` + `ModelCheckpoint(save_best_only)`. |
-| **Generalization diagnostics** | Block 1 | Predicted-vs-actual scatter and zero-mean residual histogram on 100 held-out engines (`notebooks/04`). |
-| **Backprop / gradient flow** | Block 1 / 2 | Gradient-based feature importance (`|∂RUL/∂xᵢ|`) ranks sensor drivers — same `GradientTape` mechanics as backprop. |
-| **Uncertainty estimation** | extension | **MC Dropout** (Gal & Ghahramani, 2016) — dropout as Bayesian approximation — for the confidence band. |
+| Concept | Where it's applied here |
+|---|---|
+| **Choosing the right network family** | RUL is a *temporal* signal → RNN family. A plain ANN (flattening loses order) and a CNN (no spatial structure) were explicitly rejected — see `notebooks/03` markdown. |
+| **SimpleRNN & the vanishing gradient** | Trained as the baseline; it's measurably worst (RMSE 15.90), reproducing the lesson that tanh recurrence dilutes early-cycle signal over 30 steps. |
+| **GRU (reset/update gates)** | Second model — fewer parameters, comparable accuracy; actually best RMSE here. |
+| **LSTM (cell-state highway, 4 gates)** | `LSTM(128, return_sequences=True) → LSTM(64)` stacked sequential pattern, adapted from classification to regression. |
+| **Attention mechanism** | Custom `DotProductAttention` over the 30 timesteps: `softmax(XXᵀ/√d)·X` — lets the model weight cycles by relevance and exposes *which* cycles drove the prediction. |
+| **Sliding-window sequence modelling** | 30-cycle overlapping windows per engine turn each life into many `[30, 17]` training samples. |
+| **Loss functions** | **Huber loss (δ=10)** — MSE for small errors, MAE for large — robust to the few engines with extreme RUL. Evaluation uses RMSE / MAE. |
+| **Optimizer & learning-rate schedule** | Adam (lr 1e-3) + `ReduceLROnPlateau` (halve on plateau) — the "LR too large = bouncing" lesson. |
+| **Mini-batch gradient descent** | `batch_size=64`, 80/20 train/val split. |
+| **Dropout regularization** | `Dropout(0.2)` after each recurrent layer to prevent co-adaptation; reused at inference for MC Dropout. |
+| **L2 / weight decay** | `kernel_regularizer=l2(1e-4)` on recurrent and dense layers. |
+| **Batch normalization** | Stabilizes the dense head's training. |
+| **Overfitting control / callbacks** | `EarlyStopping(patience=10, restore_best_weights)` + `ModelCheckpoint(save_best_only)`. |
+| **Generalization diagnostics** | Predicted-vs-actual scatter and zero-mean residual histogram on 100 held-out engines (`notebooks/04`). |
+| **Backpropagation / gradient flow** | Gradient-based feature importance (`|∂RUL/∂xᵢ|`) ranks sensor drivers — same `GradientTape` mechanics as backprop. |
+| **Uncertainty estimation** | **MC Dropout** (Gal & Ghahramani, 2016) — dropout as a Bayesian approximation — for the confidence band. |
 
 **Why not a CNN or a plain ANN?** Engine data is sequential, not spatial: a CNN kernel has no
 analog for adjacent timesteps, and flattening 30 cycles into 510 numbers for a Dense net throws
-away the ordering that *is* the degradation signal. The RNN family is the curriculum's answer for
-time series, and the four-model ablation proves the SimpleRNN → LSTM progression on our own data.
+away the ordering that *is* the degradation signal. The RNN family is the right fit for time
+series, and the four-model ablation proves the SimpleRNN → LSTM progression on our own data.
 
 ---
 
@@ -391,7 +381,7 @@ attribution (`|∂RUL/∂xᵢ|`).
 | Backend | FastAPI + Uvicorn | ✅ Built |
 | Backend hosting | Hugging Face Spaces (Docker) | ✅ Live |
 | Frontend | Next.js 14 + TypeScript + Tailwind + Recharts + Framer Motion | ✅ Built |
-| Frontend hosting | Vercel | ⬜ Ready to deploy |
+| Frontend hosting | Vercel | ✅ Live |
 | Dataset | NASA CMAPSS FD001 | ✅ In repo |
 
 ---
