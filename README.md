@@ -12,7 +12,28 @@ short_description: FastAPI backend for turbofan engine RUL prediction
 
 **IE University — Deep Learning Final Project | June 2026 | Prof. Concepción Díaz**
 
-> Predicts the Remaining Useful Life (RUL) of commercial aircraft turbofan engines from multivariate sensor time series. Built as a deployable MVP — not a notebook demo.
+> Predicts the Remaining Useful Life (RUL) of commercial aircraft turbofan engines from
+> multivariate sensor time series. Built as a deployable MVP — not a notebook demo.
+
+---
+
+## What We Built
+
+A complete, end-to-end deep-learning product around NASA's CMAPSS turbofan dataset:
+
+1. **A reproducible ML pipeline** (4 Jupyter notebooks): EDA → preprocessing → training →
+   evaluation. We trained **four recurrent architectures** under identical hyperparameters
+   (SimpleRNN → GRU → LSTM → LSTM + Attention) so the class's RNN curriculum is *demonstrated
+   empirically*, not just asserted.
+2. **A FastAPI backend** that loads the trained Keras model and serves real predictions, with
+   **MC-Dropout uncertainty bands**, gradient-based sensor attribution, and a fleet-simulation
+   API. Deployed live on Hugging Face Spaces (Docker).
+3. **A Next.js dashboard** — a dark "aerospace ops-centre" with a live RUL gauge, a fleet
+   degradation demo, sensor telemetry, and a model-performance page driven by the real
+   held-out evaluation.
+
+The whole thing is wired to **real data and a real model**: every number on the dashboard
+traces back to the 100 held-out FD001 engines scored through the deployed network.
 
 ---
 
@@ -33,12 +54,45 @@ Trained on NASA CMAPSS FD001 (100 engines, 17,731 sequences):
 | Model | RMSE | MAE | Note |
 |---|---|---|---|
 | SimpleRNN | 15.90 cycles | 11.22 | Baseline — vanishing gradient |
-| GRU | **13.57 cycles** | **9.97** | Best performer |
-| LSTM | 13.71 cycles | 10.26 | |
-| LSTM + Attention | 14.52 cycles | 10.33 | Deployed model |
+| GRU | **13.57 cycles** | **9.97** | Best RMSE |
+| LSTM | 13.71 cycles | 10.26 | Full 4-gate cell |
+| LSTM + Attention | 14.52 cycles | 10.33 | **Deployed** — chosen for interpretability |
 
 **59% of predictions within ±10 cycles. 92% within ±25 cycles.**
 Literature benchmark for FD001: RMSE 12–18 cycles.
+
+> We deploy LSTM + Attention despite GRU's marginally lower RMSE: the attention weights and
+> gradient attribution explain *which cycles and which sensors* drove each prediction. For an
+> aviation MRO product, "why" is worth ~1 cycle of RMSE.
+
+---
+
+## How It Works
+
+End-to-end, a prediction flows through five stages — and the inference path in
+`backend/predict.py` mirrors `notebooks/02_preprocessing.ipynb` **exactly** (any drift between
+training and serving = wrong predictions).
+
+```
+ raw sensors          preprocessing             model              uncertainty         dashboard
+┌────────────┐   ┌──────────────────────┐   ┌───────────┐   ┌──────────────────┐   ┌──────────┐
+│ 21 sensors │ → │ drop 7 constant cols │ → │ stacked   │ → │ MC Dropout ×30   │ → │ RUL gauge│
+│ + 3 op set │   │ MinMax scale (train) │   │ LSTM +    │   │ → 95% CI band    │   │ + alerts │
+│ × 30 cycle │   │ 30-cycle window      │   │ Attention │   │ grad attribution │   │ + drivers│
+│  window    │   │ RUL cap = 125        │   │ → RUL     │   │ → top sensors    │   │          │
+└────────────┘   └──────────────────────┘   └───────────┘   └──────────────────┘   └──────────┘
+```
+
+1. **Input** — a 30-cycle window of raw flight-sensor readings (the dashboard/demo can replay
+   recorded CMAPSS engines, or a caller can POST their own window to `/predict`).
+2. **Preprocessing** — drop 7 near-constant sensors (found in EDA), apply the persisted
+   `MinMaxScaler` (fit on training data only), and stack into a `[1, 30, 17]` tensor.
+3. **Model** — stacked LSTM with a dot-product self-attention head outputs a single RUL value.
+4. **Uncertainty + attribution** — the model is run 30× with **dropout left active**
+   (MC Dropout); the spread of outputs becomes a 95% confidence band. A gradient pass
+   (`|∂RUL/∂xᵢ|`) ranks which sensors mattered most.
+5. **Serving** — FastAPI returns `{rul, ci_lower, ci_upper, status, top_sensors}`; the React
+   dashboard renders the gauge, the OK/WARNING/CRITICAL status, and the sensor-driver panel.
 
 ---
 
@@ -51,11 +105,50 @@ Input: [batch, 30 cycles, 17 features]  ← 30-cycle sliding window
     → DotProductAttention  ← learns which cycles matter most
     → GlobalAveragePooling1D
     → Dense(32, ReLU) + BatchNormalization
-    → Dense(1)  ← RUL in cycles
+    → Dense(1)  ← RUL in cycles (linear regression output)
 ```
 
 **Dataset:** NASA CMAPSS FD001 — 21 sensors, 3 operational settings per flight cycle.
-7 constant-variance sensors dropped → 17 features. RUL capped at 125 cycles.
+7 constant-variance sensors dropped → 17 features. RUL capped at 125 cycles (piecewise-linear).
+
+**Uncertainty:** because the network keeps `Dropout(0.2)` layers, the backend uses
+**MC Dropout** (Gal & Ghahramani, 2016) — 30 stochastic forward passes with dropout on — and
+reports `±1.96σ` as a 95% band. BatchNorm is frozen during sampling so the moving statistics
+(and therefore the deterministic point estimate) don't drift between requests.
+
+Full design rationale and the class-concept mapping: [`docs/architecture.md`](docs/architecture.md).
+
+---
+
+## Deep Learning Concepts Applied (from class)
+
+This project is a deliberate walk through the course curriculum. Each design choice traces to a
+specific block — and where the syllabus taught a concept on classification, we adapted it to our
+**regression** task (`Dense(1)` linear output + Huber/MSE loss instead of sigmoid + cross-entropy).
+
+| Concept | Course block | Where it's applied here |
+|---|---|---|
+| **Choosing the right family** | B1 ANN / B2 CNN / B4 RNN | RUL is a *temporal* signal → RNN family. ANN (flattening loses order) and CNN (no spatial structure) explicitly rejected — see `notebooks/03` markdown. |
+| **SimpleRNN & vanishing gradient** | Block 4 | Trained as the baseline; it's measurably worst (RMSE 15.90), reproducing the lesson that tanh recurrence dilutes early-cycle signal over 30 steps. |
+| **GRU (reset/update gates)** | Block 4 | Second model — fewer params, comparable accuracy; actually best RMSE here. |
+| **LSTM (cell-state highway, 4 gates)** | Block 4 | `LSTM(128, return_sequences=True) → LSTM(64)` stacked, the Block-4 sequential pattern, adapted from classification to regression. |
+| **Attention mechanism** | Block 1 / 4 | Custom `DotProductAttention` over the 30 timesteps: `softmax(XXᵀ/√d)·X` — lets the model weight cycles by relevance and exposes *which* cycles drove the prediction. |
+| **Sliding-window sequence modelling** | Block 4 | 30-cycle overlapping windows per engine turn each life into many `[30, 17]` training samples. |
+| **Loss functions** | Block 1 | **Huber loss (δ=10)** — MSE for small errors, MAE for large — robust to the few engines with extreme RUL. Evaluation uses RMSE / MAE. |
+| **Optimizer & learning-rate schedule** | Block 1 / 4 | Adam (lr 1e-3) + `ReduceLROnPlateau` (halve on plateau) — the "LR too large = bouncing" lesson. |
+| **Mini-batch gradient descent** | Block 1 | `batch_size=64`, 80/20 train/val split (the "golden rule"). |
+| **Regularization — Dropout** | Block 2 | `Dropout(0.2)` after each recurrent layer to prevent co-adaptation; reused at inference for MC Dropout. |
+| **Regularization — L2 / weight decay** | Block 1 / 2 | `kernel_regularizer=l2(1e-4)` on recurrent and dense layers. |
+| **BatchNormalization** | Block 2 | Stabilizes the dense head's training. |
+| **Overfitting control / callbacks** | Block 1 / 4 | `EarlyStopping(patience=10, restore_best_weights)` + `ModelCheckpoint(save_best_only)`. |
+| **Generalization diagnostics** | Block 1 | Predicted-vs-actual scatter and zero-mean residual histogram on 100 held-out engines (`notebooks/04`). |
+| **Backprop / gradient flow** | Block 1 / 2 | Gradient-based feature importance (`|∂RUL/∂xᵢ|`) ranks sensor drivers — same `GradientTape` mechanics as backprop. |
+| **Uncertainty estimation** | extension | **MC Dropout** (Gal & Ghahramani, 2016) — dropout as Bayesian approximation — for the confidence band. |
+
+**Why not a CNN or a plain ANN?** Engine data is sequential, not spatial: a CNN kernel has no
+analog for adjacent timesteps, and flattening 30 cycles into 510 numbers for a Dense net throws
+away the ordering that *is* the degradation signal. The RNN family is the curriculum's answer for
+time series, and the four-model ablation proves the SimpleRNN → LSTM progression on our own data.
 
 ---
 
@@ -65,31 +158,38 @@ A dark "aerospace ops-centre" interface built on a small custom design system. T
 
 **Fleet (`/`)**
 - RUL gauge for the selected engine, with a power-on sweep and a live needle.
-- "Run demo" plays the degradation: the whole fleet ticks down along each engine's own real trajectory, the gauge drops, and an alert fires when life runs low.
-- Live sensor telemetry (per-channel sparklines) and a "top sensor drivers" panel fed by the model's real gradient attribution. Hover a sensor name to see what it measures.
+- "Run demo" plays the degradation: the whole fleet ticks down along each engine's own real
+  trajectory, the gauge drops, and an alert fires when life runs low.
+- Live sensor telemetry (per-channel sparklines) and a "top sensor drivers" panel fed by the
+  model's real gradient attribution. Hover a sensor name to see what it measures.
 
 **Performance (`/performance`)**
 - Headline metrics (RMSE, MAE, NASA score, within ±10) each with a plain-language explanation.
-- Where-the-data-comes-from summary and a primer on all four models (SimpleRNN / GRU / LSTM / LSTM + Attention).
+- Where-the-data-comes-from summary and a primer on all four models (SimpleRNN / GRU / LSTM /
+  LSTM + Attention).
 - Real predicted-vs-actual scatter from the 100 held-out engines scored on the live model.
 - Confusion matrix sorting engines into OK / Warning / Critical buckets.
-- Attention view and a maintenance-cost "what-if" tool whose failure risk comes from the model's real error (RMSE).
+- Attention view and a maintenance-cost "what-if" tool whose failure risk comes from the
+  model's real error (RMSE).
 
-Every backend call goes through `src/lib/api.ts`. The real evaluation metrics and predicted-vs-actual data are also bundled in the app, so the charts still show real numbers if the API is unreachable.
+Every backend call goes through `src/lib/api.ts`. The real evaluation metrics and
+predicted-vs-actual data are also bundled in the app, so the charts still show real numbers if
+the API is unreachable.
 
 ---
 
 ## Repo Structure
 
 ```
-predictive-maintenance-ai/
+DeepLearning_PredictiveMaintenance/
 │
 ├── README.md
 ├── requirements.txt               ← root Python deps (notebooks)
+├── Dockerfile                     ← Hugging Face Spaces build entrypoint
 │
 ├── data/
 │   ├── raw/                       ← NASA CMAPSS .txt files (committed)
-│   └── processed/                 ← numpy arrays + plots (gitignored, regenerate via notebook 02)
+│   └── processed/                 ← numpy arrays + plots (regenerate via notebook 02/04)
 │
 ├── notebooks/
 │   ├── 01_EDA.ipynb               ← sensor variance, RUL distribution, degradation trends
@@ -98,14 +198,15 @@ predictive-maintenance-ai/
 │   └── 04_evaluation.ipynb        ← metrics, plots, attention viz, demo JSON generation
 │
 ├── backend/
-│   ├── main.py                    ← FastAPI app, all 6 endpoints
-│   ├── predict.py                 ← inference pipeline (mirrors preprocessing exactly)
+│   ├── main.py                    ← FastAPI app, all 7 endpoints
+│   ├── predict.py                 ← inference pipeline + MC Dropout + gradient attribution
 │   ├── schemas.py                 ← Pydantic request/response models
 │   ├── utils.py                   ← NASA scoring function, RUL→status helpers
 │   ├── Dockerfile                 ← Hugging Face Spaces deploy (port 7860)
 │   ├── requirements.txt
 │   └── model/
-│       ├── lstm_model.keras       ← trained model
+│       ├── lstm_model.keras       ← deployed model (LSTM + Attention)
+│       ├── simple_rnn / gru / lstm_base.keras  ← the other trained architectures
 │       ├── scaler.pkl             ← fitted MinMaxScaler + pipeline config
 │       └── metrics.json           ← RMSE, MAE, NASA Score, feature importance
 │
@@ -117,12 +218,10 @@ predictive-maintenance-ai/
 │   │                                modelMetrics + evalData (bundled real fallbacks)
 │   └── public/demo-data/          ← pre-recorded engine sequences for the live demo
 │
-├── presentation/
-│   └── demo_script.md
-│
 └── docs/
-    ├── session_01_summary.md      ← what was built in session 1
-    └── api_reference.md
+    ├── architecture.md            ← model design + full class-concept mapping
+    ├── huggingface_deployment.md  ← deploy walkthrough + troubleshooting
+    └── session_*.md               ← build-session notes
 ```
 
 ---
@@ -171,6 +270,8 @@ uvicorn main:app --reload --port 8000
 
 - API docs (Swagger): http://localhost:8000/docs
 - Health check: http://localhost:8000/health → `{"status": "ok", "model_loaded": true}`
+- On startup the log confirms uncertainty mode:
+  `Uncertainty estimation: MC Dropout (30 samples)`
 
 ### Frontend — Next.js (port 3000)
 
@@ -226,6 +327,7 @@ Watch the build in the Space's **Logs** tab. A successful start logs:
 
 ```text
 Model loaded. Input shape: (None, 30, 17)
+Uncertainty estimation: MC Dropout (30 samples)
 Uvicorn running on http://0.0.0.0:7860
 ```
 
@@ -273,16 +375,10 @@ Full details and troubleshooting: [`docs/huggingface_deployment.md`](docs/huggin
 }
 ```
 
----
-
-## Team Roles
-
-| Role | Owner | Focus |
-|---|---|---|
-| ML Lead | — | Notebooks 01–04, model training, evaluation plots |
-| Backend Lead | — | FastAPI, `predict.py`, Dockerfile, HF Spaces deploy |
-| Frontend Lead | — | v0.dev components, React wiring, Vercel deploy |
-| Business & Slides | — | Gamma deck, ROI calculations, demo script, rehearsal |
+`ci_lower` / `ci_upper` are a **95% MC-Dropout band** (`rul ± 1.96σ` over 30 stochastic forward
+passes). `MC_DROPOUT_SAMPLES` is configurable via env var; if a model without dropout layers is
+loaded, the backend falls back to a ±15% heuristic. `top_sensors` is the gradient-based
+attribution (`|∂RUL/∂xᵢ|`).
 
 ---
 
@@ -291,6 +387,7 @@ Full details and troubleshooting: [`docs/huggingface_deployment.md`](docs/huggin
 | Layer | Tool | Status |
 |---|---|---|
 | Model | Keras + TensorFlow 2.15 — stacked LSTM + Attention | ✅ Trained |
+| Uncertainty | MC Dropout (30 stochastic passes) | ✅ Live |
 | Backend | FastAPI + Uvicorn | ✅ Built |
 | Backend hosting | Hugging Face Spaces (Docker) | ✅ Live |
 | Frontend | Next.js 14 + TypeScript + Tailwind + Recharts + Framer Motion | ✅ Built |
@@ -306,3 +403,5 @@ Preventive maintenance triggered by this model costs **~$35,000**.
 Fleet of 50 engines, 2 avoided failures/month → **$11.2M/year saved**.
 
 **Presentation: June 30, 2026**
+</content>
+</invoke>
